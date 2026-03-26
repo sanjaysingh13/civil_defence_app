@@ -1,0 +1,74 @@
+{% comment %}
+_pagination.html — shared Bootstrap 5 pagination controls.
+
+This template is INCLUDED (not extended) by any list view template like this:
+    {% include "_pagination.html" with page_obj=page_obj query_string=query_string %}
+
+Variables expected from the including template:
+  page_obj      — Django's Page object provided automatically by ListView.
+                  It has attributes like:
+                    page_obj.has_previous  → True/False
+                    page_obj.has_next      → True/False
+                    page_obj.number        → current page number (1-based)
+                    page_obj.paginator.num_pages → total number of pages
+                    page_obj.previous_page_number → int
+                    page_obj.next_page_number     → int
+  query_string  — Any extra GET params to preserve across pages
+                  e.g. "q=PALASH&unit=5" so that filters survive pagination clicks.
+
+Bootstrap pagination classes:
+  pagination         — outer <ul> container
+  page-item          — each <li>
+  page-item disabled — greyed-out first/prev when on page 1
+  page-item active   — highlight the current page number
+  page-link          — the <a> tag inside each <li>
+{% endcomment %}
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav aria-label="Page navigation" class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center flex-wrap gap-1">
+
+    {# ── First page link ──────────────────────────────────────────────── #}
+    <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+      <a class="page-link" href="?page=1&{{ query_string }}" aria-label="First">&laquo;&laquo;</a>
+    </li>
+
+    {# ── Previous page link ───────────────────────────────────────────── #}
+    <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+      <a class="page-link"
+         href="?page={% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% else %}1{% endif %}&{{ query_string }}"
+         aria-label="Previous">&laquo;</a>
+    </li>
+
+    {# ── Page number buttons ───────────────────────────────────────────── #}
+    {# We show at most 5 page numbers centred around the current page.      #}
+    {% for i in page_obj.paginator.page_range %}
+      {# Show only pages within 2 of the current page to avoid a 100-button bar. #}
+      {% if i >= page_obj.number|add:"-2" and i <= page_obj.number|add:"2" %}
+        <li class="page-item {% if i == page_obj.number %}active{% endif %}">
+          <a class="page-link" href="?page={{ i }}&{{ query_string }}">{{ i }}</a>
+        </li>
+      {% endif %}
+    {% endfor %}
+
+    {# ── Next page link ───────────────────────────────────────────────── #}
+    <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+      <a class="page-link"
+         href="?page={% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}{{ page_obj.paginator.num_pages }}{% endif %}&{{ query_string }}"
+         aria-label="Next">&raquo;</a>
+    </li>
+
+    {# ── Last page link ───────────────────────────────────────────────── #}
+    <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+      <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&{{ query_string }}" aria-label="Last">&raquo;&raquo;</a>
+    </li>
+
+  </ul>
+
+  {# Show a human-readable summary below the pagination bar #}
+  <p class="text-center text-muted small mt-1">
+    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    &nbsp;&middot;&nbsp; {{ page_obj.paginator.count }} total record{{ page_obj.paginator.count|pluralize }}
+  </p>
+</nav>
+{% endif %}

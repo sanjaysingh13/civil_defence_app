@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% comment %}
+equipment_list.html — Paginated, filterable table of all equipment items.
+
+Context from EquipmentListView:
+  equipment_list     — paginated queryset
+  page_obj           — pagination metadata
+  category_choices   — list of (value, label) tuples from EquipmentCategory.choices
+  status_choices     — list of (value, label) tuples from EquipmentStatus.choices
+  units              — all Unit objects
+  q                  — search string
+  selected_category, selected_status, selected_unit — active filter values
+{% endcomment %}
+
+{% block title %}Equipment — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold">Equipment</h2>
+      <small class="text-muted">{{ page_obj.paginator.count }} item{{ page_obj.paginator.count|pluralize }}</small>
+    </div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item active">Equipment</li>
+      </ol>
+    </nav>
+  </div>
+
+  {# ── Filters ─────────────────────────────────────────────────────────────── #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+          <label for="q" class="form-label form-label-sm mb-1 fw-semibold">Search name</label>
+          <input type="text" id="q" name="q" value="{{ q }}"
+                 class="form-control form-control-sm" placeholder="Equipment name…">
+        </div>
+        <div class="col-6 col-md-2">
+          <label for="category" class="form-label form-label-sm mb-1 fw-semibold">Category</label>
+          <select id="category" name="category" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for val, label in category_choices %}
+              <option value="{{ val }}" {% if selected_category == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label for="status" class="form-label form-label-sm mb-1 fw-semibold">Status</label>
+          <select id="status" name="status" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label for="unit" class="form-label form-label-sm mb-1 fw-semibold">Unit</label>
+          <select id="unit" name="unit" class="form-select form-select-sm">
+            <option value="">All Units</option>
+            {% for u in units %}
+              <option value="{{ u.pk }}" {% if selected_unit == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3 d-flex gap-2 align-items-end">
+          <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+          <a href="{% url 'equipment:equipment-list' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Table ────────────────────────────────────────────────────────────────── #}
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered mb-0 align-middle small">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-center">#</th>
+              <th>Name</th>
+              <th>Unit</th>
+              <th class="text-center">Category</th>
+              <th class="text-center">Status</th>
+              <th class="text-center">Qty</th>
+              <th>Asset Tag</th>
+              <th class="text-center">Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for eq in equipment_list %}
+            <tr>
+              <td class="text-center text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+              <td class="fw-semibold">{{ eq.name }}</td>
+              <td>{{ eq.unit.name }}</td>
+              <td class="text-center">
+                <span class="badge bg-info text-dark">{{ eq.get_category_display }}</span>
+              </td>
+              <td class="text-center">
+                {% if eq.status == "OK" %}
+                  <span class="badge bg-success">Functional</span>
+                {% elif eq.status == "REPAIR" %}
+                  <span class="badge bg-warning text-dark">Under Repair</span>
+                {% elif eq.status == "DISPOSED" %}
+                  <span class="badge bg-dark">Disposed</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ eq.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td class="text-center">{{ eq.quantity }}</td>
+              <td><code class="small">{{ eq.unique_id }}</code></td>
+              <td class="text-center">
+                <a href="{% url 'equipment:equipment-detail' eq.pk %}"
+                   class="btn btn-sm btn-outline-primary py-0 px-2">View</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">No equipment items match the current filters.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% with query_string="q="|add:q|add:"&category="|add:selected_category|add:"&status="|add:selected_status|add:"&unit="|add:selected_unit %}
+    {% include "_pagination.html" with page_obj=page_obj query_string=query_string %}
+  {% endwith %}
+
+</div>
+{% endblock content %}

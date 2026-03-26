@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% comment %}
+unit_list.html — Table of all 23 Civil Defence units.
+
+"extends" means this template inherits the full page layout from base.html.
+We only need to fill in the named {% block %} sections defined in base.html.
+
+Context variables provided by UnitListView (ListView):
+  units          — QuerySet of Unit objects annotated with volunteer_count
+  object_list    — same as units (ListView default name)
+{% endcomment %}
+
+{% block title %}Units — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Page Header ─────────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold">Civil Defence Units</h2>
+      <small class="text-muted">{{ units|length }} district units</small>
+    </div>
+    {# Breadcrumb for orientation within the site #}
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item active">Units</li>
+      </ol>
+    </nav>
+  </div>
+
+  {# ── Table Card ──────────────────────────────────────────────────────────── #}
+  {# Bootstrap "card" wraps content in a rounded bordered box.                 #}
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      {# table-responsive wraps the table in a horizontal scroll container     #}
+      {# so on small screens the table doesn't break the page layout.          #}
+      <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered mb-0 align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th scope="col" class="text-center" style="width:50px">#</th>
+              <th scope="col">Unit Name</th>
+              <th scope="col">Slug</th>
+              <th scope="col" class="text-center">Active Volunteers</th>
+              <th scope="col" class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for unit in units %}
+            <tr>
+              {# loop.counter gives the 1-based row number within the current page #}
+              <td class="text-center text-muted">{{ forloop.counter }}</td>
+              <td class="fw-semibold">{{ unit.name }}</td>
+              <td><code class="text-secondary">{{ unit.slug }}</code></td>
+              <td class="text-center">
+                {# Bootstrap badge gives the count a coloured pill appearance #}
+                <span class="badge bg-primary rounded-pill">{{ unit.volunteer_count }}</span>
+              </td>
+              <td class="text-center">
+                <a href="{% url 'personnel:unit-detail' unit.pk %}"
+                   class="btn btn-sm btn-outline-primary">
+                  View
+                </a>
+                <a href="{% url 'personnel:volunteer-list' %}?unit={{ unit.pk }}"
+                   class="btn btn-sm btn-outline-secondary ms-1">
+                  Volunteers
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            {# The "empty" block renders when the queryset returns no rows. #}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">No units found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock content %}

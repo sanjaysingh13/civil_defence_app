@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% comment %}
+unit_detail.html — Detail card for a single Civil Defence unit.
+
+Context variables from UnitDetailView:
+  object     — the Unit instance (also accessible as "unit" via template context)
+  volunteers — QuerySet of active volunteers in this unit, ordered by serial_no
+{% endcomment %}
+
+{% block title %}{{ object.name }} — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Breadcrumb ─────────────────────────────────────────────────────────── #}
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'personnel:unit-list' %}">Units</a></li>
+      <li class="breadcrumb-item active">{{ object.name }}</li>
+    </ol>
+  </nav>
+
+  {# ── Unit Info Card ──────────────────────────────────────────────────────── #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-dark text-white">
+      <h4 class="mb-0 fw-bold">{{ object.name }}</h4>
+    </div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Slug</dt>
+        <dd class="col-sm-9"><code>{{ object.slug }}</code></dd>
+
+        <dt class="col-sm-3">Description</dt>
+        <dd class="col-sm-9">{{ object.description|default:"—" }}</dd>
+
+        <dt class="col-sm-3">Active volunteers</dt>
+        <dd class="col-sm-9">
+          <span class="badge bg-primary fs-6">{{ volunteers|length }}</span>
+        </dd>
+
+        <dt class="col-sm-3">Created</dt>
+        <dd class="col-sm-9">{{ object.created_at|date:"d M Y, H:i" }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  {# ── Volunteers Table ────────────────────────────────────────────────────── #}
+  <h5 class="fw-bold mb-2">Volunteers in this unit</h5>
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered mb-0 align-middle small">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-center">#</th>
+              <th>Sl No.</th>
+              <th>Name</th>
+              <th>Block / Area</th>
+              <th class="text-center">Gender</th>
+              <th class="text-center">Blood</th>
+              <th>Mobile</th>
+              <th class="text-center">Registered</th>
+              <th class="text-center">Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vol in volunteers %}
+            <tr>
+              <td class="text-center text-muted">{{ forloop.counter }}</td>
+              <td>{{ vol.serial_no }}</td>
+              <td class="fw-semibold">{{ vol.name }}</td>
+              <td class="text-truncate" style="max-width:160px" title="{{ vol.block }}">
+                {{ vol.block|default:"—" }}
+              </td>
+              <td class="text-center">
+                {% if vol.gender == "F" %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ vol.get_gender_display }}</span>
+                {% elif vol.gender == "M" %}
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ vol.get_gender_display }}</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{{ vol.get_gender_display }}</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if vol.blood_group != "UNK" %}
+                  <span class="badge bg-danger">{{ vol.blood_group }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>{{ vol.mobile|default:"—" }}</td>
+              <td class="text-center text-muted">
+                {% if vol.registration_date %}{{ vol.registration_date|date:"d M Y" }}{% else %}—{% endif %}
+              </td>
+              <td class="text-center">
+                <a href="{% url 'personnel:volunteer-detail' vol.pk %}"
+                   class="btn btn-sm btn-outline-primary py-0 px-2">View</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="9" class="text-center text-muted py-4">No active volunteers in this unit.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock content %}

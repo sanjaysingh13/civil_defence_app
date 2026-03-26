@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% comment %}
+incident_list.html — Paginated, filterable table of all incidents.
+
+Context from IncidentListView:
+  incidents          — paginated queryset
+  page_obj           — pagination metadata
+  status_choices     — list of (value, label) tuples from IncidentStatus.choices
+  type_choices       — list of (value, label) tuples from IncidentType.choices
+  units              — all Unit objects
+  q                  — current search string
+  selected_status    — current status filter
+  selected_type      — current type filter
+  selected_unit      — current unit filter
+{% endcomment %}
+
+{% block title %}Incidents — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold">Incidents</h2>
+      <small class="text-muted">{{ page_obj.paginator.count }} total incident{{ page_obj.paginator.count|pluralize }}</small>
+    </div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item active">Incidents</li>
+      </ol>
+    </nav>
+  </div>
+
+  {# ── Filters ─────────────────────────────────────────────────────────────── #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+          <label for="q" class="form-label form-label-sm mb-1 fw-semibold">Search title</label>
+          <input type="text" id="q" name="q" value="{{ q }}"
+                 class="form-control form-control-sm" placeholder="Incident title…">
+        </div>
+        <div class="col-6 col-md-2">
+          <label for="status" class="form-label form-label-sm mb-1 fw-semibold">Status</label>
+          <select id="status" name="status" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label for="type" class="form-label form-label-sm mb-1 fw-semibold">Type</label>
+          <select id="type" name="type" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for val, label in type_choices %}
+              <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label for="unit" class="form-label form-label-sm mb-1 fw-semibold">Unit</label>
+          <select id="unit" name="unit" class="form-select form-select-sm">
+            <option value="">All Units</option>
+            {% for u in units %}
+              <option value="{{ u.pk }}" {% if selected_unit == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3 d-flex gap-2 align-items-end">
+          <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+          <a href="{% url 'incidents:incident-list' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Table ────────────────────────────────────────────────────────────────── #}
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered mb-0 align-middle small">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-center">#</th>
+              <th>Title</th>
+              <th>Unit</th>
+              <th class="text-center">Type</th>
+              <th class="text-center">Status</th>
+              <th class="text-center">Started</th>
+              <th class="text-center">Closed</th>
+              <th class="text-center">Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inc in incidents %}
+            <tr>
+              <td class="text-center text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+              <td class="fw-semibold">{{ inc.title }}</td>
+              <td>{{ inc.unit.name }}</td>
+              <td class="text-center">
+                <span class="badge bg-secondary">{{ inc.get_incident_type_display }}</span>
+              </td>
+              <td class="text-center">
+                {% if inc.status == "OPEN" %}
+                  <span class="badge bg-success">Open</span>
+                {% elif inc.status == "CLOSED" %}
+                  <span class="badge bg-dark">Closed</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">{{ inc.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td class="text-center text-muted">
+                {% if inc.start_time %}{{ inc.start_time|date:"d M Y" }}{% else %}—{% endif %}
+              </td>
+              <td class="text-center text-muted">
+                {% if inc.end_time %}{{ inc.end_time|date:"d M Y" }}{% else %}—{% endif %}
+              </td>
+              <td class="text-center">
+                <a href="{% url 'incidents:incident-detail' inc.pk %}"
+                   class="btn btn-sm btn-outline-primary py-0 px-2">View</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">No incidents match the current filters.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% with query_string="q="|add:q|add:"&status="|add:selected_status|add:"&type="|add:selected_type|add:"&unit="|add:selected_unit %}
+    {% include "_pagination.html" with page_obj=page_obj query_string=query_string %}
+  {% endwith %}
+
+</div>
+{% endblock content %}

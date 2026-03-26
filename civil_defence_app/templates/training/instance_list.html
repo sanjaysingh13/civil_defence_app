@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% comment %}
+instance_list.html — Paginated table of all training batches (TrainingInstance).
+
+Context from TrainingInstanceListView:
+  instances          — paginated queryset
+  page_obj           — pagination metadata
+  trainings          — all Training objects (for filter dropdown)
+  units              — all Unit objects (for filter dropdown)
+  selected_training  — current training filter value (pk string)
+  selected_unit      — current unit filter value (pk string)
+{% endcomment %}
+
+{% block title %}Training Batches — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold">Training Batches</h2>
+      <small class="text-muted">{{ page_obj.paginator.count }} total batch{{ page_obj.paginator.count|pluralize:"es" }}</small>
+    </div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'training:training-list' %}">Training</a></li>
+        <li class="breadcrumb-item active">Batches</li>
+      </ol>
+    </nav>
+  </div>
+
+  {# ── Filters ─────────────────────────────────────────────────────────────── #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label for="training" class="form-label form-label-sm mb-1 fw-semibold">Programme</label>
+          <select id="training" name="training" class="form-select form-select-sm">
+            <option value="">All Programmes</option>
+            {% for t in trainings %}
+              <option value="{{ t.pk }}"
+                {% if selected_training == t.pk|stringformat:"d" %}selected{% endif %}>
+                {{ t.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="unit" class="form-label form-label-sm mb-1 fw-semibold">Unit</label>
+          <select id="unit" name="unit" class="form-select form-select-sm">
+            <option value="">All Units</option>
+            {% for u in units %}
+              <option value="{{ u.pk }}"
+                {% if selected_unit == u.pk|stringformat:"d" %}selected{% endif %}>
+                {{ u.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3 d-flex gap-2 align-items-end">
+          <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+          <a href="{% url 'training:instance-list' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Table ────────────────────────────────────────────────────────────────── #}
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered mb-0 align-middle small">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-center">#</th>
+              <th>Programme</th>
+              <th>Unit</th>
+              <th class="text-center">Type</th>
+              <th>Venue</th>
+              <th class="text-center">Start</th>
+              <th class="text-center">End</th>
+              <th class="text-center">Enrolled</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inst in instances %}
+            <tr>
+              <td class="text-center text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+              <td class="fw-semibold">{{ inst.training.name }}</td>
+              <td>{{ inst.unit.name }}</td>
+              <td class="text-center">
+                <span class="badge bg-info text-dark">{{ inst.training.get_training_type_display }}</span>
+              </td>
+              <td>{{ inst.location|default:"—" }}</td>
+              <td class="text-center">
+                {% if inst.start_date %}{{ inst.start_date|date:"d M Y" }}{% else %}—{% endif %}
+              </td>
+              <td class="text-center">
+                {% if inst.end_date %}{{ inst.end_date|date:"d M Y" }}{% else %}—{% endif %}
+              </td>
+              <td class="text-center">
+                <span class="badge bg-primary rounded-pill">{{ inst.attendances.count }}</span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">No training batches match the current filters.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% with query_string="training="|add:selected_training|add:"&unit="|add:selected_unit %}
+    {% include "_pagination.html" with page_obj=page_obj query_string=query_string %}
+  {% endwith %}
+
+</div>
+{% endblock content %}
