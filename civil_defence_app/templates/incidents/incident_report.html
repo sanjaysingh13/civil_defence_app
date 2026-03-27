@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}File Report: {{ incident.incident_number }} — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0 fw-bold">&#x1F4CB; Incident Report</h2>
+      <p class="text-muted mb-0">
+        <strong>{{ incident.incident_number }}</strong> &mdash; {{ incident.title }}
+        &nbsp;
+        {% if incident.status == "OPEN" %}
+          <span class="badge bg-success">Open</span>
+        {% elif incident.status == "CLOSED" %}
+          <span class="badge bg-dark">Closed</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">{{ incident.get_status_display }}</span>
+        {% endif %}
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'incidents:incident-detail' incident.pk %}" class="btn btn-outline-secondary btn-sm">
+        &#x2190; View Incident
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white fw-semibold">
+          Detailed Report
+        </div>
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_report">
+
+            <div class="mb-3">
+              <label for="{{ form.final_report.id_for_label }}" class="form-label fw-semibold">
+                {{ form.final_report.label }}
+              </label>
+              {{ form.final_report }}
+              {% if form.final_report.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for e in form.final_report.errors %}{{ e }}{% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.end_time.id_for_label }}" class="form-label fw-semibold">
+                {{ form.end_time.label }}
+              </label>
+              {{ form.end_time }}
+              {% if form.end_time.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for e in form.end_time.errors %}{{ e }}{% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.status.id_for_label }}" class="form-label fw-semibold">
+                {{ form.status.label }}
+              </label>
+              {{ form.status }}
+              <div class="form-text text-muted">
+                Set to "Closed / Completed" when the operation is fully concluded.
+              </div>
+              {% if form.status.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for e in form.status.errors %}{{ e }}{% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}
+              </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-dark px-4">&#x1F4BE; Save Report</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-secondary text-white fw-semibold">
+          &#x1F4F7; Attach Photos / Videos
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload_media">
+
+            <div class="mb-3">
+              <label for="{{ media_form.files.id_for_label }}" class="form-label fw-semibold small">
+                {{ media_form.files.label }}
+              </label>
+              {{ media_form.files }}
+              <div class="form-text text-muted small">
+                Accepts: JPEG, PNG, GIF, MP4, WebM. Hold Ctrl/Cmd to select multiple files.
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ media_form.caption.id_for_label }}" class="form-label fw-semibold small">
+                {{ media_form.caption.label }}
+              </label>
+              {{ media_form.caption }}
+            </div>
+
+            <button type="submit" class="btn btn-secondary btn-sm px-3">&#x2191; Upload</button>
+          </form>
+        </div>
+      </div>
+
+      {% if existing_media %}
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold small">
+          Already Attached ({{ existing_media.count }})
+        </div>
+        <div class="card-body p-2">
+          <div class="row g-1">
+            {% for media in existing_media %}
+            <div class="col-4">
+              {% with media.file.name|lower as fname %}
+                {% if ".jpg" in fname or ".jpeg" in fname or ".png" in fname or ".gif" in fname %}
+                  <img src="{{ media.file.url }}"
+                       class="img-fluid rounded border"
+                       alt="{{ media.caption|default:'Media' }}"
+                       style="object-fit: cover; height: 70px; width: 100%;"
+                       title="{{ media.caption }}">
+                {% else %}
+                  <a href="{{ media.file.url }}" target="_blank"
+                     class="btn btn-outline-secondary btn-sm w-100 p-1 small text-truncate">
+                    &#x1F4CE; File
+                  </a>
+                {% endif %}
+              {% endwith %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+  </div>
+
+</div>
+{% endblock content %}

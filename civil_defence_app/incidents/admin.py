@@ -30,16 +30,18 @@ class IncidentMediaInline(admin.TabularInline):
 
 @admin.register(Incident)
 class IncidentAdmin(admin.ModelAdmin):
-    list_display   = ("title", "incident_type", "status", "unit", "start_time", "created_at")
+    list_display   = ("incident_number", "title", "incident_type", "status", "unit", "start_time", "created_at")
     list_filter    = ("incident_type", "status", "unit")
-    search_fields  = ("title", "location_text", "description")
+    search_fields  = ("incident_number", "title", "location_text", "description")
     autocomplete_fields = ("unit",)
-    readonly_fields = ("created_at", "updated_at")
+    # incident_number is auto-generated; mark as read-only so the admin
+    # never shows an editable text box for it on the change form.
+    readonly_fields = ("incident_number", "created_at", "updated_at")
     inlines        = [IncidentLogInline, IncidentAssignmentInline, IncidentMediaInline]
 
     fieldsets = (
         ("Basic Info", {
-            "fields": ("unit", "title", "incident_type", "status"),
+            "fields": ("incident_number", "unit", "title", "incident_type", "status"),
         }),
         ("Location & Time", {
             "fields": ("location_text", "latitude", "longitude", "start_time", "end_time"),

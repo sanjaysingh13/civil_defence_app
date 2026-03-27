@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}{{ traininginstance.training.name }} — Batch — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0 fw-bold">{{ traininginstance.training.name }}</h2>
+      <small class="text-muted">
+        Batch at {{ traininginstance.location|default:"Unknown venue" }}
+        {% if traininginstance.start_date %}&mdash; {{ traininginstance.start_date|date:"d M Y" }}{% endif %}
+      </small>
+    </div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'training:instance-list' %}">Batches</a></li>
+        <li class="breadcrumb-item active">Batch Detail</li>
+      </ol>
+    </nav>
+  </div>
+
+  <div class="row g-3">
+
+    <div class="col-md-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white fw-semibold">Batch Details</div>
+        <div class="card-body small">
+          <dl class="row mb-0">
+            <dt class="col-5 text-muted">Programme</dt>
+            <dd class="col-7 fw-semibold">{{ traininginstance.training.name }}</dd>
+
+            <dt class="col-5 text-muted">Batch No.</dt>
+            <dd class="col-7">{{ traininginstance.batch_no|default:"—" }}</dd>
+
+            <dt class="col-5 text-muted">Venue</dt>
+            <dd class="col-7">{{ traininginstance.location|default:"—" }}</dd>
+
+            <dt class="col-5 text-muted">Start Date</dt>
+            <dd class="col-7">
+              {% if traininginstance.start_date %}{{ traininginstance.start_date|date:"d M Y" }}{% else %}—{% endif %}
+            </dd>
+
+            <dt class="col-5 text-muted">End Date</dt>
+            <dd class="col-7">
+              {% if traininginstance.end_date %}{{ traininginstance.end_date|date:"d M Y" }}{% else %}—{% endif %}
+            </dd>
+
+            <dt class="col-5 text-muted">Instructor</dt>
+            <dd class="col-7">{{ traininginstance.instructor|default:"—" }}</dd>
+
+            <dt class="col-5 text-muted">Unit</dt>
+            <dd class="col-7">{{ traininginstance.unit.name|default:"—" }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    {% if traininginstance.attendances.all %}
+    <div class="col-md-7">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold">
+          Attendance ({{ traininginstance.attendances.count }})
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 align-middle small">
+              <thead class="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>Volunteer</th>
+                  <th>Certificate No.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for att in traininginstance.attendances.all %}
+                <tr>
+                  <td class="text-muted">{{ forloop.counter }}</td>
+                  <td>{{ att.volunteer.name }}</td>
+                  <td>{{ att.certificate_no|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+</div>
+{% endblock content %}

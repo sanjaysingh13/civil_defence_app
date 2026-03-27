@@ -6,57 +6,30 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
     <title>{% block title %}Civil Defence App{% endblock title %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description"
-          content="An application to encapsulate Civil Defence personnel, units, training, equipment and fleet and incidents response" />
+    <meta name="description" content="Civil Defence personnel, units, training, equipment, fleet and incident response" />
     <meta name="author" content="Sanjay Singh" />
     <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
 
     {% block css %}
-      <!--
-        Bootstrap 5.2.3 CSS
-        Bootstrap is a CSS framework that provides a responsive grid system,
-        utility classes (m-*, p-*, d-*, text-*), and pre-built UI components
-        (navbar, dropdowns, buttons, cards, alerts, modals …).
-        Loaded from a CDN so the browser may already have it cached.
-      -->
       <link rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css"
             integrity="sha512-SbiR/eusphKoMVVXysTKG/7VseWii+Y3FdHrt0EpKgpToZeemhqHeZeLWLhJutz/2ut2Vw1uQEj2MbRF+TVBUA=="
             crossorigin="anonymous"
             referrerpolicy="no-referrer" />
-      <!-- Project-specific CSS — loaded last so it can override Bootstrap defaults -->
       <link href="{% static 'css/project.css' %}" rel="stylesheet" />
     {% endblock css %}
 
-    <!--
-      JAVASCRIPT — placed in <head> with defer.
-      "defer" downloads scripts in parallel with HTML parsing but executes them
-      only AFTER the full document is parsed, keeping the page fast.
-
-      Load order (dependency chain):
-        1. jQuery 3.7.1          — general DOM / AJAX utility library
-        2. Bootstrap 5.2.3 bundle — includes Popper.js + Bootstrap JS.
-             We use bootstrap.bundle.min.js (NOT bootstrap.min.js) because
-             the bundle already includes Popper.js, which is required for
-             dropdowns, tooltips and popovers to be positioned correctly.
-        3. project.js            — our own code; can safely use $ and bootstrap
-    -->
     {% block javascript %}
-      <!-- jQuery 3.7.1 — "$" is the jQuery alias for DOM queries and AJAX -->
       <script defer
               src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
               integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
               crossorigin="anonymous"
               referrerpolicy="no-referrer"></script>
-
-      <!-- Bootstrap 5.2.3 bundle (Popper.js included) — activates all data-bs-* attributes -->
       <script defer
               src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.bundle.min.js"
               integrity="sha512-i9cEfJwUwViEPFKdC1enz4ZRGBj8YQo6QByFTF92YXHi7waCqyexvRD75S5NVTsSiTv7rKWqG9Y5eFxmRsOn0A=="
               crossorigin="anonymous"
               referrerpolicy="no-referrer"></script>
-
-      <!-- Project-specific JS — runs after jQuery and Bootstrap are available -->
       <script defer src="{% static 'js/project.js' %}"></script>
     {% endblock javascript %}
   </head>
@@ -64,37 +37,12 @@
   <body class="{% block bodyclass %}{% endblock bodyclass %}">
     {% block body %}
 
-    <!--
-      TOP NAVIGATION BAR — Bootstrap Navbar component.
-
-      Key classes explained:
-        navbar              — base class (flex container + padding)
-        navbar-expand-lg    — collapses to hamburger on screens < 992 px (lg breakpoint)
-        navbar-dark         — white text / icons (suited for dark backgrounds)
-        bg-dark             — dark (#212529) background
-        sticky-top          — bar stays fixed at the top while the user scrolls
-        shadow-sm           — subtle drop-shadow for visual depth
-
-      Dropdown pattern (Bootstrap 5 + Popper.js):
-        1. Parent <li> → class="nav-item dropdown"
-        2. Trigger <a> → data-bs-toggle="dropdown"  (Bootstrap JS watches this)
-        3. Menu <ul>   → class="dropdown-menu"
-        4. Items       → class="dropdown-item"
-        5. Divider     → <hr class="dropdown-divider">
-    -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+    {% with cur_app=request.resolver_match.app_name|default:'' %}
+    <nav class="navbar navbar-expand-xl navbar-dark bg-dark sticky-top shadow-sm">
       <div class="container-fluid">
 
-        <!-- Brand / Logo — always visible, links to home -->
-        <a class="navbar-brand fw-bold" href="{% url 'home' %}">
-          &#x1F6E1;&#xFE0F; Civil Defence
-        </a>
+        <a class="navbar-brand fw-bold" href="{% url 'home' %}">&#x1F6E1;&#xFE0F; Civil Defence</a>
 
-        <!--
-          Hamburger button — visible only on small screens (< lg = 992 px).
-          data-bs-toggle="collapse" + data-bs-target="#navMenu" tell Bootstrap
-          to toggle the element with id="navMenu" when this button is clicked.
-        -->
         <button class="navbar-toggler"
                 type="button"
                 data-bs-toggle="collapse"
@@ -105,270 +53,223 @@
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <!-- Collapsible section — hidden on mobile, shown on lg+ screens -->
         <div class="collapse navbar-collapse" id="navMenu">
 
-          <!--
-            LEFT NAV — operational module dropdowns.
-            "me-auto" = margin-end: auto → pushes the group to the LEFT,
-            filling all available space before the right-aligned auth links.
+          <ul class="navbar-nav me-auto mb-2 mb-xl-0">
 
-            Operational links are only shown to authenticated users because
-            they require a login to do anything useful.
-          -->
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
-            <!-- Home link — visible to everyone -->
             <li class="nav-item">
-              <a class="nav-link {% block nav_home_active %}{% endblock %}"
-                 href="{% url 'home' %}">Home</a>
+              <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'home' %}">Home</a>
             </li>
 
-            <!--
-              Operational menus — wrapped in Django's authentication check.
-              "request.user.is_authenticated" is True when the visitor has
-              logged in (via django-allauth), False for anonymous visitors.
-            -->
             {% if request.user.is_authenticated %}
 
-              <!--
-                PERSONNEL DROPDOWN
-                Namespace: "personnel" (defined in personnel/urls.py, app_name = "personnel")
-                Links referenced below: personnel:unit-list, personnel:volunteer-list
-              -->
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% block nav_personnel_active %}{% endblock %}"
-                   href="#"
-                   role="button"
-                   data-bs-toggle="dropdown"
-                   aria-expanded="false">
-                  Personnel
-                </a>
-                <ul class="dropdown-menu dropdown-menu-dark">
-                  <!-- /personnel/units/ — lists all 23 Civil Defence districts -->
-                  <li>
-                    <a class="dropdown-item" href="{% url 'personnel:unit-list' %}">
-                      Units / Districts
-                    </a>
-                  </li>
-                  <!-- /personnel/volunteers/ — paginated list of all 8,218 volunteers -->
-                  <li>
-                    <a class="dropdown-item" href="{% url 'personnel:volunteer-list' %}">
-                      Volunteers
-                    </a>
-                  </li>
-                </ul>
-              </li>
+              {% if request.user.is_superuser or request.user.is_admin_role %}
 
-              <!--
-                TRAINING DROPDOWN
-                Namespace: "training" (training/urls.py)
-              -->
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% block nav_training_active %}{% endblock %}"
-                   href="#"
-                   role="button"
-                   data-bs-toggle="dropdown"
-                   aria-expanded="false">
-                  Training
-                </a>
-                <ul class="dropdown-menu dropdown-menu-dark">
-                  <!-- /training/ — all training programmes (Basic, Aapda Mitra …) -->
-                  <li>
-                    <a class="dropdown-item" href="{% url 'training:training-list' %}">
-                      Programmes
-                    </a>
-                  </li>
-                  <!-- /training/instances/ — specific batches with venue and dates -->
-                  <li>
-                    <a class="dropdown-item" href="{% url 'training:instance-list' %}">
-                      Batches / Instances
-                    </a>
-                  </li>
-                </ul>
-              </li>
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'personnel' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Personnel</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'personnel:unit-list' %}">Units / Districts</a></li>
+                    <li><a class="dropdown-item" href="{% url 'personnel:volunteer-list' %}">Volunteers</a></li>
+                  </ul>
+                </li>
 
-              <!--
-                INCIDENTS DROPDOWN
-                Namespace: "incidents" (incidents/urls.py)
-              -->
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% block nav_incidents_active %}{% endblock %}"
-                   href="#"
-                   role="button"
-                   data-bs-toggle="dropdown"
-                   aria-expanded="false">
-                  Incidents
-                </a>
-                <ul class="dropdown-menu dropdown-menu-dark">
-                  <!-- /incident/ — all incidents across all units -->
-                  <li>
-                    <a class="dropdown-item" href="{% url 'incidents:incident-list' %}">
-                      All Incidents
-                    </a>
-                  </li>
-                </ul>
-              </li>
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Training</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a></li>
+                    <li><a class="dropdown-item" href="{% url 'training:instance-list' %}">Batches / Instances</a></li>
+                  </ul>
+                </li>
 
-              <!--
-                EQUIPMENT DROPDOWN
-                Namespace: "equipment" (equipment/urls.py)
-              -->
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% block nav_equipment_active %}{% endblock %}"
-                   href="#"
-                   role="button"
-                   data-bs-toggle="dropdown"
-                   aria-expanded="false">
-                  Equipment
-                </a>
-                <ul class="dropdown-menu dropdown-menu-dark">
-                  <!-- /equipment/ — all equipment items across all units -->
-                  <li>
-                    <a class="dropdown-item" href="{% url 'equipment:equipment-list' %}">
-                      All Equipment
-                    </a>
-                  </li>
-                </ul>
-              </li>
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Incidents</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'incidents:incident-list' %}">All Incidents</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger fw-semibold" href="{% url 'incidents:incident-dispatch' %}">Log Incident</a></li>
+                  </ul>
+                </li>
 
-              <!--
-                FLEET DROPDOWN
-                Namespace: "fleet" (fleet/urls.py)
-              -->
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% block nav_fleet_active %}{% endblock %}"
-                   href="#"
-                   role="button"
-                   data-bs-toggle="dropdown"
-                   aria-expanded="false">
-                  Fleet
-                </a>
-                <ul class="dropdown-menu dropdown-menu-dark">
-                  <!-- /fleet/ — all vehicles across all units -->
-                  <li>
-                    <a class="dropdown-item" href="{% url 'fleet:vehicle-list' %}">
-                      All Vehicles
-                    </a>
-                  </li>
-                </ul>
-              </li>
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'equipment' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Equipment</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'equipment:equipment-list' %}">All Equipment</a></li>
+                  </ul>
+                </li>
 
-            {% endif %}<!-- end is_authenticated -->
-          </ul><!-- end left nav -->
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'fleet' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Fleet</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'fleet:vehicle-list' %}">All Vehicles</a></li>
+                  </ul>
+                </li>
 
-          <!--
-            RIGHT NAV — account / profile links.
-            "ms-auto" = margin-start: auto → pushes this group to the RIGHT.
-          -->
-          <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle text-warning"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">&#x2699;&#xFE0F; Admin</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'admin:index' %}">Django Admin Panel</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'admin:users_user_changelist' %}">User Management</a></li>
+                    <li><a class="dropdown-item" href="{% url 'admin:personnel_unit_changelist' %}">Unit Management</a></li>
+                  </ul>
+                </li>
+
+              {% elif request.user.is_unit_in_charge %}
+
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %} fw-semibold"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Incidents</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'incidents:incident-list' %}">All Incidents</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger fw-bold" href="{% url 'incidents:incident-dispatch' %}">&#x2795; Log Incident</a></li>
+                  </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'personnel' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Personnel</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'personnel:unit-list' %}">Units / Districts</a></li>
+                    <li><a class="dropdown-item" href="{% url 'personnel:volunteer-list' %}">Volunteers</a></li>
+                  </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Training</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a></li>
+                    <li><a class="dropdown-item" href="{% url 'training:instance-list' %}">Batches / Instances</a></li>
+                  </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'equipment' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Equipment</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'equipment:equipment-list' %}">All Equipment</a></li>
+                  </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'fleet' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Fleet</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'fleet:vehicle-list' %}">All Vehicles</a></li>
+                  </ul>
+                </li>
+
+              {% else %}
+
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Incidents</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'incidents:incident-list' %}">Incident Log</a></li>
+                  </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}"
+                     href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Training</a>
+                  <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a></li>
+                  </ul>
+                </li>
+
+              {% endif %}
+
+            {% endif %}
+
+          </ul>
+
+          <ul class="navbar-nav ms-auto mb-2 mb-xl-0 align-items-center">
+
             {% if request.user.is_authenticated %}
 
-              <!-- Logged-in user: dropdown with profile + sign out -->
+              {% if request.user.is_superuser or request.user.is_admin_role %}
+                <li class="nav-item me-2">
+                  <span class="badge bg-danger px-2 py-1 small">&#x2699;&#xFE0F; Admin</span>
+                </li>
+              {% elif request.user.is_unit_in_charge %}
+                <li class="nav-item me-2">
+                  <span class="badge bg-warning text-dark px-2 py-1 small" title="Your assigned unit">
+                    &#x1F3DB; {{ request.user.unit.name|default:"No Unit" }}
+                  </span>
+                </li>
+              {% else %}
+                <li class="nav-item me-2">
+                  <span class="badge bg-secondary px-2 py-1 small">Volunteer</span>
+                </li>
+              {% endif %}
+
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle"
-                   href="#"
-                   role="button"
-                   data-bs-toggle="dropdown"
-                   aria-expanded="false">
+                   href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   {{ request.user.username }}
                 </a>
                 <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                  <!-- /users/<username>/ — user detail / profile page -->
-                  <li>
-                    <a class="dropdown-item"
-                       href="{% url 'users:detail' request.user.username %}">
-                      {% translate "My Profile" %}
-                    </a>
-                  </li>
+                  {% if request.user.name %}
+                    <li><span class="dropdown-item-text text-muted small">{{ request.user.name }}</span></li>
+                  {% endif %}
+                  <li><span class="dropdown-item-text text-muted small">{{ request.user.get_role_display|default:"—" }}</span></li>
                   <li><hr class="dropdown-divider"></li>
-                  <!-- django-allauth sign-out URL -->
-                  <li>
-                    <a class="dropdown-item text-danger"
-                       href="{% url 'account_logout' %}">
-                      {% translate "Sign Out" %}
-                    </a>
-                  </li>
+                  <li><a class="dropdown-item" href="{% url 'users:detail' request.user.username %}">{% translate "My Profile" %}</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item text-danger" href="{% url 'account_logout' %}">{% translate "Sign Out" %}</a></li>
                 </ul>
               </li>
 
             {% else %}
 
-              <!-- Anonymous visitor: sign up + sign in links -->
               {% if ACCOUNT_ALLOW_REGISTRATION %}
                 <li class="nav-item">
-                  <a id="sign-up-link" class="nav-link" href="{% url 'account_signup' %}">
-                    {% translate "Sign Up" %}
-                  </a>
+                  <a id="sign-up-link" class="nav-link" href="{% url 'account_signup' %}">{% translate "Sign Up" %}</a>
                 </li>
               {% endif %}
               <li class="nav-item">
-                <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">
-                  {% translate "Sign In" %}
-                </a>
+                <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
               </li>
 
             {% endif %}
-          </ul><!-- end right nav -->
 
-        </div><!-- end navbar-collapse -->
-      </div><!-- end container-fluid -->
+          </ul>
+
+        </div>
+      </div>
     </nav>
+    {% endwith %}
 
-    <!--
-      PAGE CONTENT AREA
-      Wrapped in Bootstrap's .container for centred, padded layout.
-      mt-3 = margin-top: 1rem — a small gap between the navbar and content.
-    -->
     <div class="container mt-3">
 
-      <!--
-        Django messages framework — flash messages set in views via e.g.
-          messages.success(request, "Saved successfully")
-        are displayed here as dismissible Bootstrap alerts.
-        message.tags maps to Bootstrap colour classes:
-          success  → alert-success (green)
-          error    → alert-danger  (red)
-          warning  → alert-warning (yellow)
-          info     → alert-info    (blue)
-      -->
       {% if messages %}
         {% for message in messages %}
-          <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %} fade show"
-               role="alert">
+          <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %} fade show" role="alert">
             {{ message }}
-            <button type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"
-                    aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         {% endfor %}
       {% endif %}
 
-      <!--
-        Main content block — child templates override "content" to insert their
-        page-specific HTML here.  The "main" wrapper block exists so a child can
-        optionally override the entire layout (including the container).
-      -->
       {% block main %}
         {% block content %}
           <p>Use this document as a way to quick start any new project.</p>
         {% endblock content %}
       {% endblock main %}
 
-    </div><!-- end container -->
+    </div>
 
     {% endblock body %}
 
-    <!-- Modal block — child templates inject Bootstrap modal dialogs here -->
     {% block modal %}{% endblock modal %}
 
-    <!--
-      Inline JS block — for small page-specific scripts that don't warrant
-      a separate file.  Scripts here execute after the DOM is fully built
-      (they're at the bottom of <body>), so document.querySelector / $ work
-      immediately without needing DOMContentLoaded wrappers.
-    -->
     {% block inline_javascript %}{% endblock inline_javascript %}
 
   </body>

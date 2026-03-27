@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ equipment.name }} — Equipment — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0 fw-bold">{{ equipment.name }}</h2>
+      <small class="text-muted">{{ equipment.unit.name }}</small>
+    </div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'equipment:equipment-list' %}">Equipment</a></li>
+        <li class="breadcrumb-item active">{{ equipment.name }}</li>
+      </ol>
+    </nav>
+  </div>
+
+  <div class="row g-3">
+
+    <div class="col-md-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white fw-semibold">Equipment Details</div>
+        <div class="card-body small">
+          <dl class="row mb-0">
+            <dt class="col-5 text-muted">Asset Tag</dt>
+            <dd class="col-7 fw-bold font-monospace">{{ equipment.unique_id }}</dd>
+
+            <dt class="col-5 text-muted">Category</dt>
+            <dd class="col-7">{{ equipment.get_category_display }}</dd>
+
+            <dt class="col-5 text-muted">Status</dt>
+            <dd class="col-7">
+              {% if equipment.status == "OK" %}
+                <span class="badge bg-success">Functional</span>
+              {% elif equipment.status == "REPAIR" %}
+                <span class="badge bg-warning text-dark">Under Repair</span>
+              {% else %}
+                <span class="badge bg-dark">{{ equipment.get_status_display }}</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-5 text-muted">Quantity</dt>
+            <dd class="col-7">{{ equipment.quantity }}</dd>
+
+            <dt class="col-5 text-muted">Unit</dt>
+            <dd class="col-7">{{ equipment.unit.name }}</dd>
+
+            <dt class="col-5 text-muted">Last Updated</dt>
+            <dd class="col-7">{{ equipment.updated_at|date:"d M Y" }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock content %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ training.name }} — Training — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0 fw-bold">{{ training.name }}</h2>
+      <small class="text-muted">{{ training.get_training_type_display }}</small>
+    </div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'training:training-list' %}">Training</a></li>
+        <li class="breadcrumb-item active">{{ training.name }}</li>
+      </ol>
+    </nav>
+  </div>
+
+  <div class="row g-3">
+
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white fw-semibold">Programme Details</div>
+        <div class="card-body small">
+          <dl class="row mb-0">
+            <dt class="col-4 text-muted">Name</dt>
+            <dd class="col-8 fw-semibold">{{ training.name }}</dd>
+
+            <dt class="col-4 text-muted">Type</dt>
+            <dd class="col-8">{{ training.get_training_type_display }}</dd>
+
+            <dt class="col-4 text-muted">Description</dt>
+            <dd class="col-8">{{ training.description|default:"—" }}</dd>
+
+            <dt class="col-4 text-muted">Batches Run</dt>
+            <dd class="col-8">{{ training.instances.count }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    {% if training.instances.all %}
+    <div class="col-md-12">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold">Batches / Instances</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 align-middle small">
+              <thead class="table-dark">
+                <tr>
+                  <th>Location</th>
+                  <th>Start Date</th>
+                  <th>End Date</th>
+                  <th>Unit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for inst in training.instances.all %}
+                <tr>
+                  <td>{{ inst.location|default:"—" }}</td>
+                  <td>{% if inst.start_date %}{{ inst.start_date|date:"d M Y" }}{% else %}—{% endif %}</td>
+                  <td>{% if inst.end_date %}{{ inst.end_date|date:"d M Y" }}{% else %}—{% endif %}</td>
+                  <td>{{ inst.unit.name|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+</div>
+{% endblock content %}

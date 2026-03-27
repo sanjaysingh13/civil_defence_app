@@ -17,11 +17,30 @@ if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
 
 @admin.register(User)
 class UserAdmin(auth_admin.UserAdmin):
-    form = UserAdminChangeForm
+    """
+    Admin configuration for the custom User model.
+
+    Extends Django's default UserAdmin to include the two new fields:
+      - role  : shown in "Civil Defence Role" fieldset
+      - unit  : the district unit this user manages
+
+    list_display adds role + unit so the admin list page is useful for
+    quickly seeing who is assigned where.
+    autocomplete_fields uses the Unit admin's search_fields for a
+    type-ahead lookup instead of a giant dropdown.
+    """
+    form     = UserAdminChangeForm
     add_form = UserAdminCreationForm
+
+    # ── Fieldsets control the layout of the change-user form ─────────────────
     fieldsets = (
         (None, {"fields": ("username", "password")}),
         (_("Personal info"), {"fields": ("name", "email")}),
+        (
+            # New section: Civil Defence-specific fields
+            _("Civil Defence Role & Unit"),
+            {"fields": ("role", "unit")},
+        ),
         (
             _("Permissions"),
             {
@@ -36,5 +55,12 @@ class UserAdmin(auth_admin.UserAdmin):
         ),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
-    list_display = ["username", "name", "is_superuser"]
-    search_fields = ["name"]
+
+    # ── Columns visible in the admin list view ────────────────────────────────
+    list_display  = ["username", "name", "role", "unit", "is_superuser"]
+    list_filter   = ["role", "unit", "is_superuser", "is_active"]
+    search_fields = ["name", "username", "email"]
+
+    # autocomplete_fields requires the related model's admin to define
+    # search_fields — Unit admin already has this set.
+    autocomplete_fields = ["unit"]

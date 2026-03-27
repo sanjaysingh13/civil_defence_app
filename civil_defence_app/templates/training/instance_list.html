@@ -1,15 +1,4 @@
 {% extends "base.html" %}
-{% comment %}
-instance_list.html — Paginated table of all training batches (TrainingInstance).
-
-Context from TrainingInstanceListView:
-  instances          — paginated queryset
-  page_obj           — pagination metadata
-  trainings          — all Training objects (for filter dropdown)
-  units              — all Unit objects (for filter dropdown)
-  selected_training  — current training filter value (pk string)
-  selected_unit      — current unit filter value (pk string)
-{% endcomment %}
 
 {% block title %}Training Batches — Civil Defence{% endblock title %}
 
@@ -30,7 +19,6 @@ Context from TrainingInstanceListView:
     </nav>
   </div>
 
-  {# ── Filters ─────────────────────────────────────────────────────────────── #}
   <div class="card shadow-sm mb-3">
     <div class="card-body py-2">
       <form method="get" class="row g-2 align-items-end">
@@ -39,8 +27,7 @@ Context from TrainingInstanceListView:
           <select id="training" name="training" class="form-select form-select-sm">
             <option value="">All Programmes</option>
             {% for t in trainings %}
-              <option value="{{ t.pk }}"
-                {% if selected_training == t.pk|stringformat:"d" %}selected{% endif %}>
+              <option value="{{ t.pk }}" {% if selected_training == t.pk|stringformat:"d" %}selected{% endif %}>
                 {{ t.name }}
               </option>
             {% endfor %}
@@ -51,8 +38,7 @@ Context from TrainingInstanceListView:
           <select id="unit" name="unit" class="form-select form-select-sm">
             <option value="">All Units</option>
             {% for u in units %}
-              <option value="{{ u.pk }}"
-                {% if selected_unit == u.pk|stringformat:"d" %}selected{% endif %}>
+              <option value="{{ u.pk }}" {% if selected_unit == u.pk|stringformat:"d" %}selected{% endif %}>
                 {{ u.name }}
               </option>
             {% endfor %}
@@ -66,7 +52,6 @@ Context from TrainingInstanceListView:
     </div>
   </div>
 
-  {# ── Table ────────────────────────────────────────────────────────────────── #}
   <div class="card shadow-sm">
     <div class="card-body p-0">
       <div class="table-responsive">

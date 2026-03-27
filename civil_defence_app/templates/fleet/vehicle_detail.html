@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ vehicle.registration_no }} — Fleet — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0 fw-bold">{{ vehicle.registration_no }}</h2>
+      <small class="text-muted">{{ vehicle.get_vehicle_type_display }} &mdash; {{ vehicle.unit.name }}</small>
+    </div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'fleet:vehicle-list' %}">Fleet</a></li>
+        <li class="breadcrumb-item active">{{ vehicle.registration_no }}</li>
+      </ol>
+    </nav>
+  </div>
+
+  <div class="row g-3">
+
+    <div class="col-md-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-warning text-dark fw-semibold">Vehicle Details</div>
+        <div class="card-body small">
+          <dl class="row mb-0">
+            <dt class="col-5 text-muted">Registration No.</dt>
+            <dd class="col-7 fw-bold font-monospace">{{ vehicle.registration_no }}</dd>
+
+            <dt class="col-5 text-muted">Type</dt>
+            <dd class="col-7">{{ vehicle.get_vehicle_type_display }}</dd>
+
+            <dt class="col-5 text-muted">Status</dt>
+            <dd class="col-7">
+              {% if vehicle.status == "AVAILABLE" %}
+                <span class="badge bg-success">Available</span>
+              {% elif vehicle.status == "DEPLOYED" %}
+                <span class="badge bg-primary">Deployed</span>
+              {% elif vehicle.status == "MAINTENANCE" %}
+                <span class="badge bg-warning text-dark">Maintenance</span>
+              {% else %}
+                <span class="badge bg-dark">{{ vehicle.get_status_display }}</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-5 text-muted">Unit</dt>
+            <dd class="col-7">{{ vehicle.unit.name }}</dd>
+
+            <dt class="col-5 text-muted">Last Updated</dt>
+            <dd class="col-7">{{ vehicle.updated_at|date:"d M Y" }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock content %}

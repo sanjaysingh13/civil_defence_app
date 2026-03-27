@@ -24,12 +24,25 @@ Context from IncidentListView:
       <h2 class="mb-0 fw-bold">Incidents</h2>
       <small class="text-muted">{{ page_obj.paginator.count }} total incident{{ page_obj.paginator.count|pluralize }}</small>
     </div>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-        <li class="breadcrumb-item active">Incidents</li>
-      </ol>
-    </nav>
+    <div class="d-flex align-items-center gap-3">
+      {#
+        Show the "Log Incident" button only to Unit In-Charge users.
+        request.user.is_unit_in_charge is the property we added to the User model.
+        Superusers also get the button.
+      #}
+      {% if request.user.is_unit_in_charge or request.user.is_superuser %}
+        <a href="{% url 'incidents:incident-dispatch' %}"
+           class="btn btn-danger btn-sm">
+          &#x1F6A8; Log Incident
+        </a>
+      {% endif %}
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+          <li class="breadcrumb-item active">Incidents</li>
+        </ol>
+      </nav>
+    </div>
   </div>
 
   {# ── Filters ─────────────────────────────────────────────────────────────── #}
@@ -84,12 +97,12 @@ Context from IncidentListView:
           <thead class="table-dark">
             <tr>
               <th class="text-center">#</th>
+              <th>Incident No.</th>
               <th>Title</th>
               <th>Unit</th>
               <th class="text-center">Type</th>
               <th class="text-center">Status</th>
               <th class="text-center">Started</th>
-              <th class="text-center">Closed</th>
               <th class="text-center">Detail</th>
             </tr>
           </thead>
@@ -97,6 +110,7 @@ Context from IncidentListView:
             {% for inc in incidents %}
             <tr>
               <td class="text-center text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+              <td class="font-monospace small fw-bold">{{ inc.incident_number|default:"—" }}</td>
               <td class="fw-semibold">{{ inc.title }}</td>
               <td>{{ inc.unit.name }}</td>
               <td class="text-center">
@@ -113,9 +127,6 @@ Context from IncidentListView:
               </td>
               <td class="text-center text-muted">
                 {% if inc.start_time %}{{ inc.start_time|date:"d M Y" }}{% else %}—{% endif %}
-              </td>
-              <td class="text-center text-muted">
-                {% if inc.end_time %}{{ inc.end_time|date:"d M Y" }}{% else %}—{% endif %}
               </td>
               <td class="text-center">
                 <a href="{% url 'incidents:incident-detail' inc.pk %}"

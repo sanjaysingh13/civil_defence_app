@@ -1,10 +1,4 @@
 {% extends "base.html" %}
-{% comment %}
-training_list.html — Table of all Training programmes (the catalogue / syllabus).
-
-Context from TrainingListView:
-  trainings       — QuerySet annotated with instance_count
-{% endcomment %}
 
 {% block title %}Training Programmes — Civil Defence{% endblock title %}
 
@@ -43,7 +37,6 @@ Context from TrainingListView:
               <td class="text-center text-muted">{{ forloop.counter }}</td>
               <td class="fw-semibold">{{ t.name }}</td>
               <td class="text-center">
-                {# get_training_type_display() returns the human label from TrainingType TextChoices #}
                 <span class="badge bg-info text-dark">{{ t.get_training_type_display }}</span>
               </td>
               <td class="text-center">

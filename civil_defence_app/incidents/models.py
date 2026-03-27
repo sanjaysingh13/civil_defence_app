@@ -68,7 +68,27 @@ class Incident(TimeStampedModel):
     A Unit In-Charge creates and owns the incident record.  He then attaches
     Volunteers, writes log entries, and eventually closes the incident with a
     detailed report.
+
+    Incident Number Format:  {UNIT_SLUG_UPPER}-{YEAR}-{NNN}
+    Example:                 ALIPURDUAR-2026-003
+
+    The number is auto-generated in the save() method the first time a new
+    Incident is persisted to the database.  It is unique across the whole
+    incidents table.
     """
+
+    # ── Incident Number ───────────────────────────────────────────────────────
+    # null=True so existing rows in the DB (if any) get NULL instead of
+    # colliding on the unique constraint.  The save() override fills this in
+    # automatically whenever a new incident is created.
+    incident_number = models.CharField(
+        _("Incident Number"),
+        max_length=40,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text=_("Auto-generated: UNIT-YEAR-NNN  (e.g. ALIPURDUAR-2026-003)"),
+    )
 
     # The unit that is handling this incident.
     unit = models.ForeignKey(
@@ -147,7 +167,59 @@ class Incident(TimeStampedModel):
         ordering            = ["-start_time", "-created_at"]
 
     def __str__(self) -> str:
-        return f"[{self.get_status_display()}] {self.title}"
+        num = self.incident_number or "—"
+        return f"[{num}] {self.title}"
+
+    # ── Auto-generate incident number on first save ───────────────────────────
+
+    @classmethod
+    def generate_incident_number(cls, unit, reference_time=None) -> str:
+        """
+        Build the next available incident number for *unit* in the given year.
+
+        Algorithm:
+          1. Use the reference_time's year (falls back to current year).
+          2. Count existing Incident rows whose incident_number starts with
+             the prefix  "{UNIT_SLUG}-{YEAR}-"  to find the current highest
+             serial for that unit+year combination.
+          3. Return  "{UNIT_SLUG}-{YEAR}-{serial+1:03d}"
+
+        Example:  ALIPURDUAR already has ALIPURDUAR-2026-001 and -002
+                  → next call returns  "ALIPURDUAR-2026-003"
+
+        Note: a very small race condition exists if two incidents for the same
+        unit are saved simultaneously.  For the current scale (1–2 concurrent
+        operations per unit) this is acceptable.
+        """
+        from django.utils import timezone
+
+        year   = (reference_time or timezone.now()).year
+        prefix = f"{unit.slug.upper()}-{year}-"
+
+        # Count rows that already have a number with this prefix to determine
+        # the next serial number in the sequence.
+        existing_count = cls.objects.filter(
+            incident_number__startswith=prefix,
+        ).count()
+
+        serial = existing_count + 1
+        return f"{prefix}{serial:03d}"
+
+    def save(self, *args, **kwargs):
+        """
+        Override Django's default save() to auto-populate incident_number
+        the first time a new Incident is written to the database.
+
+        self.pk is None when the object is brand-new (not yet saved).
+        self.unit_id check ensures we don't crash if unit hasn't been set yet
+        (though the model's FK makes that unlikely for a real save call).
+        """
+        if not self.incident_number and self.unit_id:
+            self.incident_number = Incident.generate_incident_number(
+                self.unit,
+                reference_time=self.start_time,
+            )
+        super().save(*args, **kwargs)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
