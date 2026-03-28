@@ -25,11 +25,7 @@ Context from IncidentListView:
       <small class="text-muted">{{ page_obj.paginator.count }} total incident{{ page_obj.paginator.count|pluralize }}</small>
     </div>
     <div class="d-flex align-items-center gap-3">
-      {#
-        Show the "Log Incident" button only to Unit In-Charge users.
-        request.user.is_unit_in_charge is the property we added to the User model.
-        Superusers also get the button.
-      #}
+      {# Log Incident: Unit In-Charge or superuser (User.is_unit_in_charge). #}
       {% if request.user.is_unit_in_charge or request.user.is_superuser %}
         <a href="{% url 'incidents:incident-dispatch' %}"
            class="btn btn-danger btn-sm">
@@ -45,7 +41,6 @@ Context from IncidentListView:
     </div>
   </div>
 
-  {# ── Filters ─────────────────────────────────────────────────────────────── #}
   <div class="card shadow-sm mb-3">
     <div class="card-body py-2">
       <form method="get" class="row g-2 align-items-end">
@@ -89,7 +84,6 @@ Context from IncidentListView:
     </div>
   </div>
 
-  {# ── Table ────────────────────────────────────────────────────────────────── #}
   <div class="card shadow-sm">
     <div class="card-body p-0">
       <div class="table-responsive">
