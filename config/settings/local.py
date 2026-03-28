@@ -13,7 +13,7 @@ SECRET_KEY = env(
     default="CsDUMHWp2KGDcBaGxabFXW7ty97cBcA5lQMBexkxoeAI3bzClvurs6R7suZbHFkk",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1", "geneva-pens-valid-trigger.trycloudflare.com", "composite-animals-different-drivers.trycloudflare.com"]  # noqa: S104
+ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1", "civildefencewb.org"]  # noqa: S104
 
 # CACHES
 # ------------------------------------------------------------------------------
