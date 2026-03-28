@@ -211,6 +211,129 @@ side-by-side on wider screens.
       </div>
     </div>
 
+    {% comment %}
+    Service deployment summary for wages / attendance:
+    - Incidents = team deployment (this volunteer’s assignment to each incident).
+    - Office duty = individual (per volunteer), not a unit team operation.
+    - Year table: calendar days split by year (operational vs office).
+    - Log table: incident rows + this volunteer’s office-duty periods with dates.
+    - Office duty actions: UIC/Admin only; Start uses HTML5 date input; End closes this volunteer’s open period.
+    {% endcomment %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white fw-semibold">Service log &amp; deployment summary</div>
+        <div class="card-body">
+          {% if service_year_summary %}
+          <h6 class="text-secondary small text-uppercase mb-2">Days served by calendar year</h6>
+          <div class="table-responsive mb-4">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Year</th>
+                  <th scope="col" class="text-end">Operational (incident)</th>
+                  <th scope="col" class="text-end">Office duty</th>
+                  <th scope="col" class="text-end">Total (days)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in service_year_summary %}
+                <tr>
+                  <td>{{ row.year }}</td>
+                  <td class="text-end">{{ row.operational_days }}</td>
+                  <td class="text-end">{{ row.office_days }}</td>
+                  <td class="text-end fw-semibold">{{ row.total_days }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted small mb-4">No operational or office deployments recorded yet.</p>
+          {% endif %}
+
+          <h6 class="text-secondary small text-uppercase mb-2">Deployment log</h6>
+          {% if service_log_rows %}
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col">Reference</th>
+                  <th scope="col">Period</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in service_log_rows %}
+                <tr>
+                  <td>
+                    {% if row.deployment_kind == "OPERATIONAL" %}
+                      <span class="badge bg-danger">Incident</span>
+                    {% else %}
+                      <span class="badge bg-primary">Office</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if row.incident_pk %}
+                      <a href="{% url 'incidents:incident-detail' row.incident_pk %}">{{ row.label }}</a>
+                    {% else %}
+                      {{ row.label }}
+                    {% endif %}
+                  </td>
+                  <td class="text-nowrap small">
+                    {{ row.period_start|date:"d M Y" }}
+                    —
+                    {% if row.period_end %}
+                      {{ row.period_end|date:"d M Y" }}
+                    {% else %}
+                      <span class="text-warning">Ongoing</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted small mb-0">No deployments in the log.</p>
+          {% endif %}
+
+          {% if can_log_office_duty %}
+          <hr class="my-4">
+          <h6 class="text-secondary small text-uppercase mb-3">Office duty (this unit)</h6>
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-6 col-lg-5">
+              <form method="post" action="{% url 'personnel:volunteer-office-duty-start' object.pk %}" class="d-flex flex-wrap gap-2 align-items-end">
+                {% csrf_token %}
+                <div class="flex-grow-1" style="min-width: 12rem;">
+                  <label class="form-label small mb-1" for="id_office_duty_start_date">Start office duty (date)</label>
+                  {{ office_duty_start_form.start_date }}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm" {% if open_office_duty %}disabled title="End the current office duty before starting a new one"{% endif %}>
+                  Start office duty
+                </button>
+              </form>
+              {% if open_office_duty %}
+              <p class="small text-muted mt-2 mb-0">
+                Open period began {{ open_office_duty.started_at|date:"d M Y, H:i" }}.
+              </p>
+              {% endif %}
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <form method="post" action="{% url 'personnel:volunteer-office-duty-end' object.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm" {% if not open_office_duty %}disabled title="No open office duty to end"{% endif %}>
+                  End office duty
+                </button>
+              </form>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted small mb-0 mt-3">Office duty can be logged by administrators or this volunteer&apos;s Unit In-Charge.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <p class="text-muted small mt-3">

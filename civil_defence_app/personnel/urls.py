@@ -8,8 +8,7 @@ Namespace means you refer to these URLs in templates and reverse() calls as
   "personnel:unit-list"   instead of just   "unit-list"
 which avoids name clashes across apps.
 
-Currently these are stub views returning placeholder responses.
-Full CRUD views will be implemented in subsequent sessions.
+List and detail views are implemented; office-duty logging uses POST-only routes below.
 """
 
 from django.urls import path
@@ -32,4 +31,15 @@ urlpatterns = [
     path("volunteers/",          views.VolunteerListView.as_view(),   name="volunteer-list"),
     # GET /personnel/volunteers/<pk>/  → detail of one volunteer
     path("volunteers/<int:pk>/",  views.VolunteerDetailView.as_view(), name="volunteer-detail"),
+    # POST — start / end office duty (Admin + owning UIC only; see views)
+    path(
+        "volunteers/<int:pk>/office-duty/start/",
+        views.VolunteerOfficeDutyStartView.as_view(),
+        name="volunteer-office-duty-start",
+    ),
+    path(
+        "volunteers/<int:pk>/office-duty/end/",
+        views.VolunteerOfficeDutyEndView.as_view(),
+        name="volunteer-office-duty-end",
+    ),
 ]

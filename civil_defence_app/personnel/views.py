@@ -16,14 +16,74 @@ get_context_data() lets us pass extra variables to the template on top of
 the default ones (the paginated list / single object).
 """
 
+from datetime import datetime
+
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db.models import Count
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
+from django.utils import timezone
+from django.views import View
 from django.views.generic import DetailView
 from django.views.generic import ListView
 
+from .forms import OfficeDutyStartForm
+from .models import OfficeDutyPeriod
 from .models import Unit
 from .models import Volunteer
+from .service_log import build_service_log_rows
+from .service_log import build_year_summary
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OFFICE DUTY PERMISSIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def user_can_log_office_duty(user, volunteer: Volunteer) -> bool:
+    """
+    Only Admin (role or superuser) and the owning Unit In-Charge may start or
+    end office duty for a volunteer in their unit.
+    """
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser or getattr(user, "is_admin_role", False):
+        return True
+    if getattr(user, "is_unit_in_charge", False) and user.unit_id == volunteer.unit_id:
+        return True
+    return False
+
+
+class OfficeDutyPermissionMixin(UserPassesTestMixin):
+    """
+    Loads the volunteer from the URL and gates POST handlers on
+    user_can_log_office_duty.  Anonymous users are sent to login by
+    LoginRequiredMixin on the same view.
+    """
+
+    volunteer: Volunteer
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.volunteer = get_object_or_404(
+            Volunteer.objects.select_related("unit"),
+            pk=kwargs["pk"],
+        )
+
+    def test_func(self) -> bool:
+        return user_can_log_office_duty(self.request.user, self.volunteer)
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            messages.error(
+                self.request,
+                "You do not have permission to log office duty for this volunteer.",
+            )
+            return redirect("personnel:volunteer-detail", pk=self.volunteer.pk)
+        return super().handle_no_permission()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -123,7 +183,14 @@ class VolunteerListView(LoginRequiredMixin, ListView):
 
 
 class VolunteerDetailView(LoginRequiredMixin, DetailView):
-    """Full detail card for a single Volunteer."""
+    """
+    Full detail card for a single Volunteer.
+
+    Adds a combined service log: *incident* deployments (team operation via
+    IncidentAssignment) plus *individual* office-duty periods.  Year-wise day
+    summaries and office Start/End controls when the viewer may log office duty
+    for this volunteer (Admin or owning UIC).
+    """
     model         = Volunteer
     template_name = "personnel/volunteer_detail.html"
 
@@ -133,5 +200,85 @@ class VolunteerDetailView(LoginRequiredMixin, DetailView):
             .select_related("unit")
             .prefetch_related(
                 "training_attendances__training_instance__training",
+                "incident_assignments__incident",
+                "office_duty_periods",
             )
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        vol = self.object
+        rows = build_service_log_rows(vol)
+        context["service_log_rows"] = rows
+        context["service_year_summary"] = build_year_summary(rows)
+        context["open_office_duty"] = (
+            OfficeDutyPeriod.objects.filter(volunteer=vol, ended_at__isnull=True).first()
+        )
+        context["can_log_office_duty"] = user_can_log_office_duty(self.request.user, vol)
+        context["office_duty_start_form"] = OfficeDutyStartForm()
+        return context
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OFFICE DUTY LOGGING (POST endpoints)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class VolunteerOfficeDutyStartView(LoginRequiredMixin, OfficeDutyPermissionMixin, View):
+    """
+    Start an office-duty period: one POST with a local calendar start date.
+
+    Creates a row with started_at at the beginning of that day in the active
+    timezone.  Fails if an open office-duty row already exists for this volunteer.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        form = OfficeDutyStartForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Invalid start date.")
+            return redirect("personnel:volunteer-detail", pk=self.volunteer.pk)
+
+        start_date = form.cleaned_data["start_date"]
+        today = timezone.localdate()
+        if start_date > today:
+            messages.error(request, "Start date cannot be in the future.")
+            return redirect("personnel:volunteer-detail", pk=self.volunteer.pk)
+
+        if OfficeDutyPeriod.objects.filter(volunteer=self.volunteer, ended_at__isnull=True).exists():
+            messages.error(request, "This volunteer already has an open office duty period.")
+            return redirect("personnel:volunteer-detail", pk=self.volunteer.pk)
+
+        tz = timezone.get_current_timezone()
+        naive_start = datetime.combine(start_date, datetime.min.time())
+        started_at = timezone.make_aware(naive_start, tz)
+
+        OfficeDutyPeriod.objects.create(
+            volunteer=self.volunteer,
+            started_at=started_at,
+            recorded_by=request.user if request.user.is_authenticated else None,
+        )
+        messages.success(request, "Office duty started.")
+        return redirect("personnel:volunteer-detail", pk=self.volunteer.pk)
+
+
+class VolunteerOfficeDutyEndView(LoginRequiredMixin, OfficeDutyPermissionMixin, View):
+    """End the current open office-duty period (sets ended_at to now)."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        open_period = (
+            OfficeDutyPeriod.objects.filter(volunteer=self.volunteer, ended_at__isnull=True)
+            .order_by("-started_at")
+            .first()
+        )
+        if not open_period:
+            messages.error(request, "There is no open office duty period to end.")
+            return redirect("personnel:volunteer-detail", pk=self.volunteer.pk)
+
+        open_period.ended_at = timezone.now()
+        open_period.save(update_fields=["ended_at", "updated_at"])
+        messages.success(request, "Office duty ended.")
+        return redirect("personnel:volunteer-detail", pk=self.volunteer.pk)

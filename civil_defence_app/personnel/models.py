@@ -19,6 +19,7 @@ The __str__ method controls what Django shows when it needs to represent an
 object as a string (e.g. in the admin, dropdowns, shell).
 """
 
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -350,3 +351,69 @@ class Volunteer(TimeStampedModel):
         if (today.month, today.day) < (self.dob.month, self.dob.day):
             age -= 1
         return age
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OFFICE DUTY PERIOD
+#
+# Operational (field) deployment is a *team* operation: many volunteers on one
+# Incident via incidents.IncidentAssignment.  Office duty is *not* modelled
+# that way — it is individual time at the office, one row per volunteer.
+#
+# Service / wage day counts combine both: incident segments from the incident
+# timeline plus office periods from this model.
+#
+# At most one open period (ended_at IS NULL) per volunteer is enforced so the
+# UI can offer a single Start / End flow on the volunteer detail page.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class OfficeDutyPeriod(TimeStampedModel):
+    """
+    One contiguous office-duty stretch for a single volunteer (individual, not a unit team).
+
+    started_at is normally chosen from a date picker (start of that local day).
+    ended_at is set when the UIC or Admin ends the shift; NULL means still on duty.
+    """
+
+    volunteer = models.ForeignKey(
+        "personnel.Volunteer",
+        verbose_name=_("Volunteer"),
+        on_delete=models.CASCADE,
+        related_name="office_duty_periods",
+    )
+
+    started_at = models.DateTimeField(_("Duty Started At"))
+
+    ended_at = models.DateTimeField(
+        _("Duty Ended At"),
+        null=True,
+        blank=True,
+    )
+
+    notes = models.TextField(_("Notes"), blank=True, default="")
+
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Recorded By"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_office_duty_periods",
+    )
+
+    class Meta:
+        verbose_name = _("Office Duty Period")
+        verbose_name_plural = _("Office Duty Periods")
+        ordering = ["-started_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["volunteer"],
+                condition=models.Q(ended_at__isnull=True),
+                name="unique_open_office_duty_per_volunteer",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        end = self.ended_at.strftime("%Y-%m-%d %H:%M") if self.ended_at else "ongoing"
+        return f"{self.volunteer.name} office duty {self.started_at} → {end}"

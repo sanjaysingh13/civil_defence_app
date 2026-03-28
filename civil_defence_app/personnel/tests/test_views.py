@@ -10,13 +10,20 @@ Four views:
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
+from civil_defence_app.incidents.models import IncidentAssignment
+from civil_defence_app.incidents.tests.factories import AdminUserFactory
+from civil_defence_app.incidents.tests.factories import IncidentFactory
 from civil_defence_app.incidents.tests.factories import UICUserFactory
 from civil_defence_app.incidents.tests.factories import UnitFactory
 from civil_defence_app.incidents.tests.factories import VolunteerFactory
+from civil_defence_app.personnel.models import OfficeDutyPeriod
 
 pytestmark = pytest.mark.django_db
 
@@ -233,3 +240,83 @@ class TestVolunteerDetailView:
         url = reverse("personnel:volunteer-detail", kwargs={"pk": 999999})
         response = _login(uic).get(url)
         assert response.status_code == 404
+
+    def test_service_log_shows_incident_deployment(self):
+        """
+        Incident assignments appear in the service log section with the incident title.
+        """
+        unit = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit)
+        vol = VolunteerFactory.create(unit=unit)
+        inc = IncidentFactory.create(unit=unit, title="Service Log Flood Event")
+        inc.start_time = timezone.make_aware(datetime(2026, 1, 10, 8, 0, 0))
+        inc.end_time = timezone.make_aware(datetime(2026, 1, 12, 18, 0, 0))
+        inc.save()
+        IncidentAssignment.objects.create(incident=inc, volunteer=vol)
+        url = reverse("personnel:volunteer-detail", kwargs={"pk": vol.pk})
+        response = _login(uic).get(url)
+        assert response.status_code == 200
+        html = response.content.decode()
+        assert "Service Log Flood Event" in html
+        assert "Days served by calendar year" in html
+
+    def test_context_can_log_office_duty_for_own_uic(self):
+        """Owning UIC receives can_log_office_duty=True for volunteers in their unit."""
+        unit = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit)
+        vol = VolunteerFactory.create(unit=unit)
+        url = reverse("personnel:volunteer-detail", kwargs={"pk": vol.pk})
+        response = _login(uic).get(url)
+        assert response.context["can_log_office_duty"] is True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OFFICE DUTY POST ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestVolunteerOfficeDutyViews:
+
+    def test_admin_can_start_and_end_office_duty(self):
+        """Admin may POST start then end; database reflects one closed period."""
+        admin = AdminUserFactory.create()
+        vol = VolunteerFactory.create()
+        client = _login(admin)
+        start_url = reverse("personnel:volunteer-office-duty-start", kwargs={"pk": vol.pk})
+        today = timezone.localdate().isoformat()
+        r1 = client.post(start_url, {"start_date": today})
+        assert r1.status_code == 302
+        open_row = OfficeDutyPeriod.objects.get(volunteer=vol)
+        assert open_row.ended_at is None
+
+        end_url = reverse("personnel:volunteer-office-duty-end", kwargs={"pk": vol.pk})
+        r2 = client.post(end_url, {})
+        assert r2.status_code == 302
+        open_row.refresh_from_db()
+        assert open_row.ended_at is not None
+
+    def test_uic_wrong_unit_cannot_start_office_duty(self):
+        """UIC for unit A cannot start office duty for a volunteer in unit B."""
+        unit_a = UnitFactory.create()
+        unit_b = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit_a)
+        vol = VolunteerFactory.create(unit=unit_b)
+        client = _login(uic)
+        start_url = reverse("personnel:volunteer-office-duty-start", kwargs={"pk": vol.pk})
+        response = client.post(
+            start_url,
+            {"start_date": timezone.localdate().isoformat()},
+        )
+        assert response.status_code == 302
+        assert OfficeDutyPeriod.objects.filter(volunteer=vol).count() == 0
+
+    def test_double_start_rejected_when_period_open(self):
+        """Second start while a period is open does not create another row."""
+        admin = AdminUserFactory.create()
+        vol = VolunteerFactory.create()
+        client = _login(admin)
+        start_url = reverse("personnel:volunteer-office-duty-start", kwargs={"pk": vol.pk})
+        d = timezone.localdate().isoformat()
+        client.post(start_url, {"start_date": d})
+        client.post(start_url, {"start_date": d})
+        assert OfficeDutyPeriod.objects.filter(volunteer=vol).count() == 1

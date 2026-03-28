@@ -272,3 +272,5 @@ dump.rdb
 civil_defence_app/media/
 
 .pytest_cache/
+
+*.dump
