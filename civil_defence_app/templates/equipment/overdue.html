@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Overdue Maintenance — Equipment — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0 fw-bold text-warning">Overdue Maintenance</h2>
+      <small class="text-muted">
+        Items whose maintenance check is overdue or has never been recorded.
+        As of {{ today|date:"d M Y" }}.
+      </small>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      {% if is_admin %}
+      <form method="get" class="d-flex gap-2 align-items-end">
+        <div>
+          <label for="unit" class="form-label form-label-sm mb-1 fw-semibold">Filter by Unit</label>
+          <select id="unit" name="unit" class="form-select form-select-sm">
+            <option value="">All Units</option>
+            {% for u in all_units %}
+              <option value="{{ u.pk }}" {% if selected_unit == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-primary align-self-end">Filter</button>
+        <a href="{% url 'equipment:equipment-overdue' %}" class="btn btn-sm btn-outline-secondary align-self-end">Clear</a>
+      </form>
+      {% endif %}
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'equipment:equipment-list' %}">Equipment</a></li>
+          <li class="breadcrumb-item active text-warning">Overdue</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  {% if total_overdue > 0 %}
+  <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+    <span class="fs-4">&#x26A0;&#xFE0F;</span>
+    <div>
+      <strong>{{ total_overdue }} item{{ total_overdue|pluralize }}</strong> require attention.
+      Log a maintenance check for each item using the <em>Log Maintenance</em> button on its detail page.
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-success d-flex align-items-center gap-2 mb-3">
+    <span class="fs-4">&#x2705;</span>
+    <div>
+      <strong>All functional equipment is up to date!</strong>
+      No maintenance is overdue as of {{ today|date:"d M Y" }}.
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card shadow-sm">
+    <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+      <span>Overdue Items</span>
+      <small class="text-muted fw-normal">{{ page_obj.paginator.count }} item{{ page_obj.paginator.count|pluralize }}</small>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover table-bordered mb-0 align-middle small">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Unit</th>
+              <th>Equipment</th>
+              <th class="text-center">Type</th>
+              <th>Asset Tag</th>
+              <th class="text-center">Last Inspected</th>
+              <th class="text-center">Next Due</th>
+              <th class="text-center">Days Overdue</th>
+              <th class="text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for eq in overdue_items %}
+            <tr class="{% if not eq.last_check_date %}table-secondary{% elif eq.next_due_date %}table-warning{% endif %}">
+              <td class="text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+              <td class="text-nowrap">{{ eq.unit.name }}</td>
+              <td class="fw-semibold">{{ eq.name }}</td>
+              <td class="text-center">
+                {% if eq.equipment_type %}
+                  <span class="badge bg-info text-dark small">{{ eq.equipment_type.get_category_display }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td><code class="small">{{ eq.unique_id }}</code></td>
+              <td class="text-center">
+                {% if eq.last_check_date %}
+                  {{ eq.last_check_date|date:"d M Y" }}
+                {% else %}
+                  <span class="badge bg-danger">Never</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if eq.next_due_date %}
+                  <span class="text-danger fw-semibold">{{ eq.next_due_date|date:"d M Y" }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if eq.next_due_date %}
+                  {% with days_overdue=today|timeuntil:eq.next_due_date %}
+                    <span class="badge bg-danger">{{ eq.next_due_date|timesince:today }} ago</span>
+                  {% endwith %}
+                {% elif not eq.last_check_date %}
+                  <span class="badge bg-secondary">Not inspected</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <a href="{% url 'equipment:equipment-detail' eq.pk %}"
+                   class="btn btn-xs btn-outline-primary py-0 px-1 small">Detail</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="9" class="text-center text-muted py-4">
+                No overdue items found.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% include "_pagination.html" with page_obj=page_obj %}
+
+</div>
+{% endblock content %}

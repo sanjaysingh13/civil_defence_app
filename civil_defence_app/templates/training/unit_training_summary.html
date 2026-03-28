@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ unit.name }} — Training Summary — Civil Defence{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0 fw-bold">Training Summary</h2>
+      <small class="text-muted">{{ unit.name }}</small>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      {% if user.is_superuser or user.is_admin_role %}
+      <select class="form-select form-select-sm" style="width:auto;"
+              onchange="window.location='{% url 'training:training-unit-summary' 0 %}'.replace('0', this.value)">
+        <option value="">— Switch Unit —</option>
+        {% for u in all_units %}
+          <option value="{{ u.pk }}" {% if u.pk == unit.pk %}selected{% endif %}>{{ u.name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <a href="{% url 'training:training-coverage-summary' %}" class="btn btn-sm btn-outline-secondary">All Units</a>
+      <a href="{% url 'training:instance-list' %}?unit={{ unit.pk }}" class="btn btn-sm btn-outline-primary">Batches</a>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'training:training-list' %}">Training</a></li>
+          <li class="breadcrumb-item active">{{ unit.name }}</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="alert alert-light border mb-3">
+    <strong>{{ volunteer_active_count }}</strong> active volunteer{{ volunteer_active_count|pluralize }} in this unit.
+    Below: programmes with at least one structured attendance record for this unit (from import or manual entry).
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header fw-semibold">Programmes with attendance</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0 align-middle small">
+          <thead class="table-dark">
+            <tr>
+              <th>Programme</th>
+              <th class="text-center">Type</th>
+              <th class="text-center">Attendance rows</th>
+              <th class="text-center">View batches</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in programmes %}
+            <tr>
+              <td class="fw-semibold">{{ p.name }}</td>
+              <td class="text-center"><span class="badge bg-secondary">{{ p.get_training_type_display }}</span></td>
+              <td class="text-center">{{ p.attendance_count }}</td>
+              <td class="text-center">
+                <a href="{% url 'training:instance-list' %}?training={{ p.pk }}&unit={{ unit.pk }}"
+                   class="btn btn-xs btn-outline-primary py-0 px-2 small">Batches</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">
+                No structured training attendance for this unit yet.
+                Run <code>seed_training_from_volunteers</code> or add attendance in Admin.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock content %}

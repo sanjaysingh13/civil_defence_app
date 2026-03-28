@@ -72,6 +72,9 @@ class EquipmentFactory(DjangoModelFactory[Equipment]):
     unique_id = Sequence(lambda n: f"ASSET-{n:06d}")
     category = EquipmentCategory.RESCUE
     status = "OK"
+    # is_functional mirrors status="OK" — a working item is functional.
+    # Tests that specifically need a non-functional item can override this.
+    is_functional = True
     quantity = 2
 
     class Meta:

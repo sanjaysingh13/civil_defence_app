@@ -282,7 +282,9 @@ class Volunteer(TimeStampedModel):
 
     # Free-text details of the Basic CD Training course as recorded in source.
     # e.g. "PLACE-ALIPURDUAR CIRCUIT HOUSE, (09.12.2013 TO 13.12.2013)"
-    # Structured TrainingInstance records are created separately and linked via M2M.
+    # Structured rows: `seed_training_from_volunteers` parses this text, creates
+    # TrainingInstance + TrainingAttendance linking to "Civil Defence Basic Training".
+    # This field is kept as the immutable audit trail from the import.
     basic_training_details = models.TextField(
         _("Basic Training Details (Raw)"),
         blank=True,
@@ -290,6 +292,8 @@ class Volunteer(TimeStampedModel):
     )
 
     # e.g. "1.AAPDA MITRA 2.MDT 3. FIRE FIGHTING …"
+    # Parsed tokens map to canonical Training programmes (Aapda Mitra, MDT, …);
+    # see `training.parsers` and the same seed command.
     special_training_details = models.TextField(
         _("Special Training Details (Raw)"),
         blank=True,

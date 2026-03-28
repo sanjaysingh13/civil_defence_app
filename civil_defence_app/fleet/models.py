@@ -36,6 +36,7 @@ class TimeStampedModel(models.Model):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class VehicleType(models.TextChoices):
+    # Standard emergency vehicle types
     AMBULANCE   = "AMBULANCE",  _("Ambulance")
     FIRE_TRUCK  = "FIRE",       _("Fire Truck")
     JEEP        = "JEEP",       _("Jeep / SUV")
@@ -43,6 +44,10 @@ class VehicleType(models.TextChoices):
     MOTORCYCLE  = "MOTO",       _("Motorcycle")
     BOAT        = "BOAT",       _("Rescue Boat")
     TRUCK       = "TRUCK",      _("Truck / Lorry")
+    # Civil Defence Response Vehicle types — the primary fleet in this system.
+    # "Big CDRV" is a large response truck; "Mini CDRV" is a smaller van/vehicle.
+    BIG_CDRV    = "BIG_CDRV",   _("Big CDRV")
+    MINI_CDRV   = "MINI_CDRV",  _("Mini CDRV")
     OTHER       = "OTHER",      _("Other")
 
 

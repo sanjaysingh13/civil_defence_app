@@ -9,18 +9,26 @@
       <h2 class="mb-0 fw-bold">{{ equipment.name }}</h2>
       <small class="text-muted">{{ equipment.unit.name }}</small>
     </div>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'equipment:equipment-list' %}">Equipment</a></li>
-        <li class="breadcrumb-item active">{{ equipment.name }}</li>
-      </ol>
-    </nav>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      {% if can_log %}
+        <a href="{% url 'equipment:equipment-log-add' equipment.pk %}"
+           class="btn btn-sm btn-primary">
+          + Log Maintenance
+        </a>
+      {% endif %}
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'equipment:equipment-list' %}">Equipment</a></li>
+          <li class="breadcrumb-item active">{{ equipment.name }}</li>
+        </ol>
+      </nav>
+    </div>
   </div>
 
   <div class="row g-3">
 
-    <div class="col-md-5">
+    <div class="col-md-4">
       <div class="card shadow-sm">
         <div class="card-header bg-success text-white fw-semibold">Equipment Details</div>
         <div class="card-body small">
@@ -30,6 +38,15 @@
 
             <dt class="col-5 text-muted">Category</dt>
             <dd class="col-7">{{ equipment.get_category_display }}</dd>
+
+            <dt class="col-5 text-muted">Functional</dt>
+            <dd class="col-7">
+              {% if equipment.is_functional %}
+                <span class="badge bg-success">Yes — Functional</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">No — Non-functional</span>
+              {% endif %}
+            </dd>
 
             <dt class="col-5 text-muted">Status</dt>
             <dd class="col-7">
@@ -42,15 +59,92 @@
               {% endif %}
             </dd>
 
-            <dt class="col-5 text-muted">Quantity</dt>
-            <dd class="col-7">{{ equipment.quantity }}</dd>
-
             <dt class="col-5 text-muted">Unit</dt>
             <dd class="col-7">{{ equipment.unit.name }}</dd>
+
+            <dt class="col-5 text-muted">Last Inspection</dt>
+            <dd class="col-7">
+              {% if equipment.last_check_date %}
+                {{ equipment.last_check_date|date:"d M Y" }}
+              {% else %}
+                <span class="text-muted">Not recorded</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-5 text-muted">Next Due</dt>
+            <dd class="col-7">
+              {% if equipment.next_due_date %}
+                {{ equipment.next_due_date|date:"d M Y" }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </dd>
 
             <dt class="col-5 text-muted">Last Updated</dt>
             <dd class="col-7">{{ equipment.updated_at|date:"d M Y" }}</dd>
           </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+          <span>Maintenance History</span>
+          <small class="text-muted fw-normal">
+            {{ equipment.maintenance_logs.count }} entr{{ equipment.maintenance_logs.count|pluralize:"y,ies" }}
+          </small>
+        </div>
+        <div class="card-body p-0">
+          {% if equipment.maintenance_logs.all %}
+            <div class="table-responsive">
+              <table class="table table-sm table-striped table-hover mb-0 align-middle small">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Date</th>
+                    <th class="text-center">Fit?</th>
+                    <th>Checked By</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for log in equipment.maintenance_logs.all %}
+                  <tr>
+                    <td class="text-nowrap">{{ log.check_date|date:"d M Y" }}</td>
+                    <td class="text-center">
+                      {% if log.is_fit %}
+                        <span class="badge bg-success">Fit</span>
+                      {% else %}
+                        <span class="badge bg-warning text-dark">Not Fit</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if log.checked_by %}
+                        {{ log.checked_by.name|default:log.checked_by.username }}
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if log.remarks %}
+                        {{ log.remarks }}
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center text-muted py-4 small">
+              No maintenance records yet.
+              {% if can_log %}
+                <a href="{% url 'equipment:equipment-log-add' equipment.pk %}">Add the first one.</a>
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>

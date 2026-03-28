@@ -128,4 +128,10 @@ class VolunteerDetailView(LoginRequiredMixin, DetailView):
     template_name = "personnel/volunteer_detail.html"
 
     def get_queryset(self):
-        return Volunteer.objects.select_related("unit")
+        return (
+            Volunteer.objects
+            .select_related("unit")
+            .prefetch_related(
+                "training_attendances__training_instance__training",
+            )
+        )

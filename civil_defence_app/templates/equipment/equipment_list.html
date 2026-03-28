@@ -30,7 +30,6 @@ Context from EquipmentListView:
     </nav>
   </div>
 
-  {# ── Filters ─────────────────────────────────────────────────────────────── #}
   <div class="card shadow-sm mb-3">
     <div class="card-body py-2">
       <form method="get" class="row g-2 align-items-end">
@@ -66,7 +65,15 @@ Context from EquipmentListView:
             {% endfor %}
           </select>
         </div>
-        <div class="col-6 col-md-3 d-flex gap-2 align-items-end">
+        <div class="col-6 col-md-2">
+          <label for="functional" class="form-label form-label-sm mb-1 fw-semibold">Functional</label>
+          <select id="functional" name="functional" class="form-select form-select-sm">
+            <option value="">All</option>
+            <option value="1" {% if selected_functional == "1" %}selected{% endif %}>Functional only</option>
+            <option value="0" {% if selected_functional == "0" %}selected{% endif %}>Non-functional only</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-1 d-flex gap-2 align-items-end">
           <button type="submit" class="btn btn-sm btn-primary">Filter</button>
           <a href="{% url 'equipment:equipment-list' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
         </div>
@@ -74,7 +81,6 @@ Context from EquipmentListView:
     </div>
   </div>
 
-  {# ── Table ────────────────────────────────────────────────────────────────── #}
   <div class="card shadow-sm">
     <div class="card-body p-0">
       <div class="table-responsive">
@@ -101,14 +107,10 @@ Context from EquipmentListView:
                 <span class="badge bg-info text-dark">{{ eq.get_category_display }}</span>
               </td>
               <td class="text-center">
-                {% if eq.status == "OK" %}
+                {% if eq.is_functional %}
                   <span class="badge bg-success">Functional</span>
-                {% elif eq.status == "REPAIR" %}
-                  <span class="badge bg-warning text-dark">Under Repair</span>
-                {% elif eq.status == "DISPOSED" %}
-                  <span class="badge bg-dark">Disposed</span>
                 {% else %}
-                  <span class="badge bg-secondary">{{ eq.get_status_display }}</span>
+                  <span class="badge bg-warning text-dark">Non-functional</span>
                 {% endif %}
               </td>
               <td class="text-center">{{ eq.quantity }}</td>

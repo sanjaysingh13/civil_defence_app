@@ -1,6 +1,9 @@
 """
 Training app URL configuration.
 Mounted under "training/" prefix with namespace "training".
+
+Order note: static path segments ("coverage/", "instances/", "unit/…") must appear
+before "<int:pk>/" so they are not captured as integer primary keys.
 """
 
 from django.urls import path
@@ -10,13 +13,25 @@ from . import views
 app_name = "training"
 
 urlpatterns = [
-    # GET /training/                        → list all training programmes
-    path("",                           views.TrainingListView.as_view(),         name="training-list"),
-    # GET /training/<pk>/                   → detail of one programme + its batches
-    path("<int:pk>/",                  views.TrainingDetailView.as_view(),        name="training-detail"),
+    path("", views.TrainingListView.as_view(), name="training-list"),
 
-    # GET /training/instances/              → list all training instances / batches
-    path("instances/",                 views.TrainingInstanceListView.as_view(),  name="instance-list"),
-    # GET /training/instances/<pk>/         → detail of one batch + attendance roll
-    path("instances/<int:pk>/",        views.TrainingInstanceDetailView.as_view(),name="instance-detail"),
+    path(
+        "coverage/",
+        views.TrainingCoverageSummaryView.as_view(),
+        name="training-coverage-summary",
+    ),
+    path(
+        "unit/<int:unit_pk>/summary/",
+        views.TrainingUnitSummaryView.as_view(),
+        name="training-unit-summary",
+    ),
+
+    path("<int:pk>/", views.TrainingDetailView.as_view(), name="training-detail"),
+
+    path("instances/", views.TrainingInstanceListView.as_view(), name="instance-list"),
+    path(
+        "instances/<int:pk>/",
+        views.TrainingInstanceDetailView.as_view(),
+        name="instance-detail",
+    ),
 ]

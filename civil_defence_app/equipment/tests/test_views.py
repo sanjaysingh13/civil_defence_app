@@ -129,6 +129,57 @@ class TestEquipmentListView:
         assert "status_choices" in response.context
         assert "units" in response.context
 
+    def test_filter_by_functional_shows_only_working_items(self):
+        """
+        ?functional=1 must return only items where is_functional=True.
+        Non-functional items (is_functional=False) must be excluded.
+        """
+        uic  = UICUserFactory.create()
+        unit = UnitFactory.create()
+        working = EquipmentFactory.create(unit=unit, name="Working Rope",    is_functional=True)
+        broken  = EquipmentFactory.create(unit=unit, name="Broken Generator", is_functional=False)
+        response = _login(uic).get(LIST_URL, {"functional": "1"})
+        content  = response.content.decode()
+        assert working.name in content
+        assert broken.name not in content
+
+    def test_filter_by_functional_zero_shows_only_non_functional(self):
+        """
+        ?functional=0 must return only items where is_functional=False.
+        Working items (is_functional=True) must be excluded.
+        """
+        uic  = UICUserFactory.create()
+        unit = UnitFactory.create()
+        working = EquipmentFactory.create(unit=unit, name="Good Stretcher",   is_functional=True)
+        broken  = EquipmentFactory.create(unit=unit, name="Worn Life Jacket", is_functional=False)
+        response = _login(uic).get(LIST_URL, {"functional": "0"})
+        content  = response.content.decode()
+        assert broken.name in content
+        assert working.name not in content
+
+    def test_filter_functional_empty_shows_all(self):
+        """
+        An empty ?functional= (or no parameter at all) must show both functional
+        and non-functional items — no filtering applied.
+        """
+        uic  = UICUserFactory.create()
+        unit = UnitFactory.create()
+        working = EquipmentFactory.create(unit=unit, name="Active Harness",  is_functional=True)
+        broken  = EquipmentFactory.create(unit=unit, name="Busted Carabiner", is_functional=False)
+        response = _login(uic).get(LIST_URL)
+        content  = response.content.decode()
+        assert working.name in content
+        assert broken.name in content
+
+    def test_context_contains_selected_functional(self):
+        """
+        selected_functional must be present in the context so the template
+        can re-select the correct dropdown option after a filter is applied.
+        """
+        uic = UICUserFactory.create()
+        response = _login(uic).get(LIST_URL, {"functional": "1"})
+        assert response.context["selected_functional"] == "1"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DETAIL VIEW
