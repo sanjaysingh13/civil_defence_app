@@ -1,3 +1,370 @@
 {% extends "base.html" %}
 
+<!--
+  This template extends base.html so you get the same navbar, Bootstrap, and layout as every other page.
+  Only the title block and content block are overridden here.
+-->
+{% block title %}Workflow guide | Civil Defence App{% endblock title %}
 
+{% block content %}
+
+<!--
+  Bootstrap "container" centers content and adds horizontal padding.
+  "py-4" adds vertical padding so the page does not touch the navbar or footer area.
+-->
+<div class="container py-4">
+
+    <!--
+      Hero: high-level purpose of this page and the fastest paths into the app.
+      Uses the primary theme colour so it matches Bootstrap's "primary" buttons elsewhere.
+    -->
+    <div class="bg-primary text-white border rounded-3 p-4 mb-4 shadow">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-3">
+            <div>
+                <h1 class="h3 mb-2">Civil Defence App — Workflow guide</h1>
+                <p class="mb-0 opacity-90">
+                    Step-by-step instructions for incident logging, reporting, office duty, equipment, training, personnel, and admin tasks.
+                    Use this page as the operational checklist; use the navbar for daily navigation.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-light" href="{% url 'incidents:incident-list' %}">
+                    <i class="fas fa-list" aria-hidden="true"></i> Incident log
+                </a>
+                <a class="btn btn-outline-light" href="{% url 'incidents:incident-dispatch' %}">
+                    <i class="fas fa-plus-circle" aria-hidden="true"></i> Log incident
+                </a>
+                <a class="btn btn-outline-light" href="{% url 'equipment:equipment-inventory-summary' %}">
+                    <i class="fas fa-boxes" aria-hidden="true"></i> Inventory summary
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!--
+      Row 1 — three equal columns on large screens (col-lg-4).
+      Each card is one major workflow cluster: incidents, equipment lifecycle, people & training.
+    -->
+    <div class="row g-4 mb-4">
+
+        <!-- Card 1: Incident Response Log + Incident Report (end-to-end incident lifecycle) -->
+        <div class="col-lg-4">
+            <div class="card h-100 shadow">
+                <div class="card-header bg-danger text-white">
+                    <h2 class="h5 mb-0">
+                        <i class="fas fa-clipboard-list" aria-hidden="true"></i> Incidents — log &amp; report
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <strong>Incident Response Log</strong> is the running record of all incidents.
+                        <strong>Incident Report</strong> is filed after the event, from a specific incident’s page.
+                    </p>
+
+                    <h3 class="h6 text-danger mb-2">
+                        <i class="fas fa-book" aria-hidden="true"></i> 1. Incident Response Log
+                    </h3>
+                    <ul class="mb-3">
+                        <li>Open <a href="{% url 'incidents:incident-list' %}">All Incidents</a> to browse, filter, and search the log.</li>
+                        <li>Unit In-Charge: use <a href="{% url 'incidents:incident-dispatch' %}">Log Incident</a> to create a new entry and record dispatch (people, equipment, vehicles).</li>
+                        <li>Click any row (or open the incident URL) to see <a href="{% url 'incidents:incident-list' %}">full detail</a> — start from the list and choose an incident.</li>
+                        <li>Keep the log accurate: time, location, resources, and status updates belong here before formal reporting.</li>
+                    </ul>
+
+                    <h3 class="h6 text-danger mb-2">
+                        <i class="fas fa-file-signature" aria-hidden="true"></i> 2. Incident Report
+                    </h3>
+                    <ul class="mb-0">
+                        <li>After the response, open the incident’s detail page from <a href="{% url 'incidents:incident-list' %}">All Incidents</a>.</li>
+                        <li>Use the report action on that incident (URL pattern: <code>/incident/&lt;id&gt;/report/</code>) to submit narrative and upload media.</li>
+                        <li>Complete reports while facts are fresh; attach photos or documents the organisation requires for records.</li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{% url 'incidents:incident-list' %}" class="btn btn-sm btn-danger">
+                            <i class="fas fa-list" aria-hidden="true"></i> Open log
+                        </a>
+                        <a href="{% url 'incidents:incident-dispatch' %}" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-plus" aria-hidden="true"></i> New incident
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Inventory + Maintenance + Overdue (equipment stewardship) -->
+        <div class="col-lg-4">
+            <div class="card h-100 shadow">
+                <div class="card-header bg-success text-white">
+                    <h2 class="h5 mb-0">
+                        <i class="fas fa-tools" aria-hidden="true"></i> Equipment — inventory &amp; maintenance
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <strong>Inventory Management</strong> tracks what each unit holds.
+                        <strong>Maintenance</strong> records service and faults.
+                        <strong>Overdue maintenance</strong> is the escalation queue.
+                    </p>
+
+                    <h3 class="h6 text-success mb-2">
+                        <i class="fas fa-warehouse" aria-hidden="true"></i> 3. Inventory management
+                    </h3>
+                    <ul class="mb-3">
+                        <li>Admin overview: <a href="{% url 'equipment:equipment-inventory-summary' %}">Inventory by Unit</a>.</li>
+                        <li>Detailed list: <a href="{% url 'equipment:equipment-list' %}">All Items</a> — filter by unit or status as needed.</li>
+                        {% if request.user.is_authenticated and request.user.unit %}
+                        <li>Your unit: <a href="{% url 'equipment:unit-inventory' request.user.unit.pk %}">My Unit Inventory</a>.</li>
+                        {% else %}
+                        <li>Unit In-Charge: open your unit from Personnel, then use “My Unit Inventory” from the Equipment menu.</li>
+                        {% endif %}
+                    </ul>
+
+                    <h3 class="h6 text-success mb-2">
+                        <i class="fas fa-wrench" aria-hidden="true"></i> 4. Maintenance
+                    </h3>
+                    <ul class="mb-3">
+                        <li>Non-functional items: <a href="{% url 'equipment:equipment-list' %}?functional=0">filter non-functional</a> — prioritise repairs.</li>
+                        <li>Open an equipment item’s detail page, then add a maintenance log entry (service date, notes, restore to functional when appropriate).</li>
+                        <li>Maintenance history for a unit: {% if request.user.is_authenticated and request.user.unit %}<a href="{% url 'equipment:unit-logs' request.user.unit.pk %}">My Unit Logs</a>{% else %}use <strong>My Unit Logs</strong> from the Equipment menu when you have an assigned unit{% endif %}.</li>
+                    </ul>
+
+                    <h3 class="h6 text-success mb-2">
+                        <i class="fas fa-exclamation-circle" aria-hidden="true"></i> 5. Acting on overdue maintenance
+                    </h3>
+                    <ul class="mb-0">
+                        <li>Open <a href="{% url 'equipment:equipment-overdue' %}">Overdue Maintenance</a> — items past their next service date.</li>
+                        <li>Assign responsibility, schedule service, or mark exceptions in the maintenance log after each item is handled.</li>
+                        <li>Re-check the overdue list until it is clear or every row has a documented plan.</li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{% url 'equipment:equipment-overdue' %}" class="btn btn-sm btn-success">
+                            <i class="fas fa-bell" aria-hidden="true"></i> Overdue
+                        </a>
+                        <a href="{% url 'equipment:equipment-list' %}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-box" aria-hidden="true"></i> All equipment
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Office duty, Training, Personnel profiles -->
+        <div class="col-lg-4">
+            <div class="card h-100 shadow">
+                <div class="card-header bg-info text-white">
+                    <h2 class="h5 mb-0">
+                        <i class="fas fa-user-clock" aria-hidden="true"></i> People — duty, training, records
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <strong>Office duty</strong> records who is on desk duty.
+                        <strong>Training</strong> tracks programmes and attendance coverage.
+                        <strong>Personnel detail management</strong> is maintaining volunteer and unit records.
+                    </p>
+
+                    <h3 class="h6 text-info mb-2">
+                        <i class="fas fa-building" aria-hidden="true"></i> 6. Office duty assignment
+                    </h3>
+                    <ul class="mb-3">
+                        <li>Open <a href="{% url 'personnel:volunteer-list' %}">Volunteers</a> and select the person on duty.</li>
+                        <li>On the volunteer’s detail page, use <strong>Start office duty</strong> when their shift begins (POST to the start URL).</li>
+                        <li>Use <strong>End office duty</strong> when the shift ends so the roster stays truthful for audits.</li>
+                        <li>Only roles allowed by the app (e.g. Admin or the volunteer’s Unit In-Charge) can start/end duty — others will be blocked.</li>
+                    </ul>
+
+                    <h3 class="h6 text-info mb-2">
+                        <i class="fas fa-chalkboard-teacher" aria-hidden="true"></i> 7. Training
+                    </h3>
+                    <ul class="mb-3">
+                        {% if request.user.is_authenticated %}
+                        {% if request.user.is_superuser or request.user.is_admin_role %}
+                        <li><a href="{% url 'training:training-coverage-summary' %}">Coverage by Unit</a> — see which units have met training targets.</li>
+                        {% endif %}
+                        {% endif %}
+                        <li><a href="{% url 'training:training-list' %}">Programmes</a> — define or review training types.</li>
+                        <li><a href="{% url 'training:instance-list' %}">Batches / Instances</a> — scheduled runs and attendance.</li>
+                        {% if request.user.is_authenticated and request.user.is_unit_in_charge and request.user.unit %}
+                        <li>Your unit: <a href="{% url 'training:training-unit-summary' request.user.unit.pk %}">My Unit Training Summary</a>.</li>
+                        {% endif %}
+                    </ul>
+
+                    <h3 class="h6 text-info mb-2">
+                        <i class="fas fa-id-card" aria-hidden="true"></i> 8. Personnel detail management
+                    </h3>
+                    <ul class="mb-0">
+                        <li><a href="{% url 'personnel:unit-list' %}">Units / Districts</a> — structure of the organisation.</li>
+                        <li><a href="{% url 'personnel:volunteer-list' %}">Volunteers</a> — search, filter, open profiles.</li>
+                        <li>Keep contact details, unit assignment, and role information current so dispatch and training views stay reliable.</li>
+                        <li>Your own profile: use <strong>My Profile</strong> in the user menu (account settings live under Users).</li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{% url 'personnel:volunteer-list' %}" class="btn btn-sm btn-info text-white">
+                            <i class="fas fa-users" aria-hidden="true"></i> Volunteers
+                        </a>
+                        <a href="{% url 'training:training-list' %}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-graduation-cap" aria-hidden="true"></i> Training
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--
+      Second row: Admin-only workflow (full width card so it is visually distinct).
+      Uses warning styling to signal elevated privileges.
+    -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card shadow border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h2 class="h5 mb-0">
+                        <i class="fas fa-user-shield" aria-hidden="true"></i> 9. Admin actions
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        These links are for <strong>superusers</strong> and <strong>admin role</strong> users.
+                        They cover Django’s admin interface and bulk management of users and units.
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <h3 class="h6 mb-2">Django Admin</h3>
+                            <ul class="mb-0">
+                                <li><a href="{% url 'admin:index' %}">Admin home</a> — all models (incidents, equipment, training, etc.).</li>
+                                <li>Use changelists to search, filter, and edit in bulk when the web UI is faster than per-record forms.</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h3 class="h6 mb-2">Users &amp; access</h3>
+                            <ul class="mb-0">
+                                <li><a href="{% url 'admin:users_user_changelist' %}">User management</a> — accounts, roles, staff flags.</li>
+                                <li>Align Django users with volunteers where your process requires it; reset passwords and verify email where applicable.</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h3 class="h6 mb-2">Organisation</h3>
+                            <ul class="mb-0">
+                                <li><a href="{% url 'admin:personnel_unit_changelist' %}">Unit management</a> — districts / units hierarchy.</li>
+                                <li>After structural changes, spot-check inventory and training summaries so dashboards still match reality.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <a href="{% url 'admin:index' %}" class="btn btn-sm btn-warning">
+                        <i class="fas fa-cog" aria-hidden="true"></i> Open Django Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--
+      Accordion: collapsible sections keep the page shorter while holding extra reference material.
+      data-bs-parent ties panels so only one is open at a time (Bootstrap 5 behaviour).
+    -->
+    <div class="accordion mb-4" id="workflowReferenceAccordion">
+
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingRoles">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRoles" aria-expanded="false" aria-controls="collapseRoles">
+                    <i class="fas fa-theater-masks me-2" aria-hidden="true"></i> Who typically does what
+                </button>
+            </h2>
+            <div id="collapseRoles" class="accordion-collapse collapse" aria-labelledby="headingRoles" data-bs-parent="#workflowReferenceAccordion">
+                <div class="accordion-body">
+                    <ul class="mb-0">
+                        <li><strong>Volunteer:</strong> incident log (read), training programmes visible to you, own profile.</li>
+                        <li><strong>Unit In-Charge:</strong> log incidents, file incident reports, unit inventory/logs, office duty for their volunteers, unit training summary.</li>
+                        <li><strong>Admin:</strong> everything above plus global training coverage, all equipment views, Django Admin, users, units.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOrder">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOrder" aria-expanded="false" aria-controls="collapseOrder">
+                    <i class="fas fa-sort-amount-down me-2" aria-hidden="true"></i> Suggested order during a live incident
+                </button>
+            </h2>
+            <div id="collapseOrder" class="accordion-collapse collapse" aria-labelledby="headingOrder" data-bs-parent="#workflowReferenceAccordion">
+                <div class="accordion-body">
+                    <ol class="mb-0">
+                        <li>Log the incident and dispatch resources (<a href="{% url 'incidents:incident-dispatch' %}">Log Incident</a>).</li>
+                        <li>Monitor the entry in <a href="{% url 'incidents:incident-list' %}">All Incidents</a>; open detail as needed.</li>
+                        <li>After stand-down, complete the <strong>Incident Report</strong> on that incident’s page with narrative and attachments.</li>
+                        <li>Update equipment maintenance if anything was damaged, consumed, or requires service before next deployment.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFleet">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFleet" aria-expanded="false" aria-controls="collapseFleet">
+                    <i class="fas fa-truck me-2" aria-hidden="true"></i> Fleet (vehicles)
+                </button>
+            </h2>
+            <div id="collapseFleet" class="accordion-collapse collapse" aria-labelledby="headingFleet" data-bs-parent="#workflowReferenceAccordion">
+                <div class="accordion-body">
+                    <p class="mb-2">Vehicles are assigned during incident dispatch. Day-to-day fleet records:</p>
+                    <ul class="mb-0">
+                        <li><a href="{% url 'fleet:vehicle-list' %}">All Vehicles</a> — master list and detail per vehicle.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--
+      Closing reminders: two alerts side by side on medium+ screens for quick scanning.
+    -->
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="alert alert-success border shadow-sm mb-0">
+                <div class="d-flex align-items-start gap-2">
+                    <i class="fas fa-check-circle mt-1" aria-hidden="true"></i>
+                    <div>
+                        <h3 class="h6 mb-1">Daily / weekly checklist</h3>
+                        <p class="mb-0 small">
+                            Office duty started/ended correctly → glance at <a href="{% url 'incidents:incident-list' %}" class="alert-link">open incidents</a> →
+                            scan <a href="{% url 'equipment:equipment-overdue' %}" class="alert-link">overdue maintenance</a> →
+                            confirm training instances on the calendar match ground reality.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="alert alert-warning border shadow-sm mb-0">
+                <div class="d-flex align-items-start gap-2">
+                    <i class="fas fa-exclamation-triangle mt-1" aria-hidden="true"></i>
+                    <div>
+                        <h3 class="h6 mb-1">Before you close an incident</h3>
+                        <p class="mb-0 small">
+                            Incident report filed → equipment status updated → volunteers’ duty records accurate →
+                            any follow-up training or admin notes captured in Admin if required.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--
+  Font Awesome: icon font loaded from a CDN.
+  integrity + crossorigin harden the request; if base.html later includes the same library, remove this duplicate.
+-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+{% endblock content %}

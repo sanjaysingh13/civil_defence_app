@@ -1,3 +1,9 @@
+### Gunicorn local PID (config/gunicorn/prod_local.py)
+run/
+
+# Django / django-environ: merged secrets (merge_production_dotenvs_in_dotenv.py → .env)
+.env
+
 ### Python template
 # Byte-compiled / optimized / DLL files
 __pycache__/
