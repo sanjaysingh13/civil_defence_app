@@ -34,7 +34,9 @@ WhiteNoise is included as a normal dependency; when `DJANGO_USE_AWS_STORAGE=Fals
 
 ### Where to edit: `.envs/.production/` vs `.envs/.local/`
 
-- **`.envs/.production/`** — Use this for **`config.settings.production`** (real email, Redis cache, optional S3, etc.). Templates live in `.envs/.production/.django` and `.envs/.production/.postgres`.
+The **`.envs/`** tree is **gitignored** (secrets); it is not in the GitHub repo. Create it locally (or copy from a private template / teammate).
+
+- **`.envs/.production/`** — Use this for **`config.settings.production`** (real email, Redis cache, optional S3, etc.). Keep `.envs/.production/.django` and `.envs/.production/.postgres` on your machine only.
 - **`.envs/.local/`** — Use this for the **Docker** local stack (`POSTGRES_HOST=postgres`, `REDIS_URL=redis://redis:6379/0`). It is not the right fit for production settings on your laptop unless you align those hostnames yourself.
 
 ### Building root `.env` and the `DJANGO_READ_DOT_ENV_FILE` caveat
