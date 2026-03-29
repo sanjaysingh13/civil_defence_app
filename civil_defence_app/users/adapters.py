@@ -38,11 +38,17 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         See: https://docs.allauth.org/en/latest/socialaccount/advanced.html#creating-and-populating-user-instances
         """
         user = super().populate_user(request, sociallogin, data)
+        # AbstractUser fields: pre-fill from provider when the signup form is skipped
+        # or when the user is created before the social signup step completes.
+        if fn := data.get("first_name"):
+            user.first_name = fn
+        if ln := data.get("last_name"):
+            user.last_name = ln
         if not user.name:
             if name := data.get("name"):
                 user.name = name
-            elif first_name := data.get("first_name"):
-                user.name = first_name
-                if last_name := data.get("last_name"):
-                    user.name += f" {last_name}"
+            elif user.first_name:
+                user.name = user.first_name
+                if user.last_name:
+                    user.name = f"{user.first_name} {user.last_name}"
         return user

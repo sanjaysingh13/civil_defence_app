@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% comment %}
 volunteer_detail.html — Full detail card for a single Volunteer.
 
@@ -10,337 +11,354 @@ which is a semantic HTML pattern for metadata display.
 Bootstrap's "row" and "col-sm-*" grid classes make each <dt>/<dd> pair sit
 side-by-side on wider screens.
 {% endcomment %}
-
-{% block title %}{{ object.name }} — Volunteer Detail{% endblock title %}
-
+{% block title %}
+  {{ object.name }} — Volunteer Detail
+{% endblock title %}
 {% block content %}
-<div class="container-fluid py-4">
-
-  <nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-      <li class="breadcrumb-item"><a href="{% url 'personnel:unit-list' %}">Units</a></li>
-      <li class="breadcrumb-item">
-        <a href="{% url 'personnel:volunteer-list' %}?unit={{ object.unit.pk }}">{{ object.unit.name }}</a>
-      </li>
-      <li class="breadcrumb-item active">{{ object.name }}</li>
-    </ol>
-  </nav>
-
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="fw-bold mb-0">{{ object.name }}</h2>
-    <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">
-      &larr; Back
-    </a>
-  </div>
-
-  <div class="row g-3">
-
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-dark text-white fw-semibold">Organisational</div>
-        <div class="card-body">
-          <dl class="row mb-0">
-            <dt class="col-sm-5">Unit</dt>
-            <dd class="col-sm-7">
-              <a href="{% url 'personnel:unit-detail' object.unit.pk %}">{{ object.unit.name }}</a>
-            </dd>
-
-            <dt class="col-sm-5">Serial No.</dt>
-            <dd class="col-sm-7">{{ object.serial_no }}</dd>
-
-            <dt class="col-sm-5">Block / Area</dt>
-            <dd class="col-sm-7">{{ object.block|default:"—" }}</dd>
-
-            <dt class="col-sm-5">Registration Date</dt>
-            <dd class="col-sm-7">
-              {% if object.registration_date %}{{ object.registration_date|date:"d M Y" }}{% else %}—{% endif %}
-            </dd>
-
-            <dt class="col-sm-5">Status</dt>
-            <dd class="col-sm-7">
-              {% if object.is_active %}
-                <span class="badge bg-success">Active</span>
-              {% else %}
-                <span class="badge bg-secondary">Inactive</span>
-              {% endif %}
-            </dd>
-          </dl>
+  <div class="container-fluid py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{% url 'home' %}">Home</a>
+        </li>
+        <li class="breadcrumb-item">
+          <a href="{% url 'personnel:unit-list' %}">Units</a>
+        </li>
+        <li class="breadcrumb-item">
+          <a href="{% url 'personnel:volunteer-list' %}?unit={{ object.unit.pk }}">{{ object.unit.name }}</a>
+        </li>
+        <li class="breadcrumb-item active">{{ object.name }}</li>
+      </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="fw-bold mb-0">{{ object.name }}</h2>
+      <a href="javascript:history.back()"
+         class="btn btn-outline-secondary btn-sm">&larr; Back</a>
+    </div>
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-dark text-white fw-semibold">Organisational</div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5">Unit</dt>
+              <dd class="col-sm-7">
+                <a href="{% url 'personnel:unit-detail' object.unit.pk %}">{{ object.unit.name }}</a>
+              </dd>
+              <dt class="col-sm-5">Serial No.</dt>
+              <dd class="col-sm-7">
+                {{ object.serial_no }}
+              </dd>
+              <dt class="col-sm-5">Block / Area</dt>
+              <dd class="col-sm-7">
+                {{ object.block|default:"—" }}
+              </dd>
+              <dt class="col-sm-5">Registration Date</dt>
+              <dd class="col-sm-7">
+                {% if object.registration_date %}
+                  {{ object.registration_date|date:"d M Y" }}
+                {% else %}
+                  —
+                {% endif %}
+              </dd>
+              <dt class="col-sm-5">Status</dt>
+              <dd class="col-sm-7">
+                {% if object.is_active %}
+                  <span class="badge bg-success">Active</span>
+                {% else %}
+                  <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+              </dd>
+            </dl>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-dark text-white fw-semibold">Personal Information</div>
-        <div class="card-body">
-          <dl class="row mb-0">
-            <dt class="col-sm-5">Gender</dt>
-            <dd class="col-sm-7">{{ object.get_gender_display }}</dd>
-
-            <dt class="col-sm-5">Category</dt>
-            <dd class="col-sm-7">{{ object.get_category_display }}</dd>
-
-            <dt class="col-sm-5">Blood Group</dt>
-            <dd class="col-sm-7">
-              {% if object.blood_group != "UNK" %}
-                <span class="badge bg-danger">{{ object.blood_group }}</span>
-              {% else %}
-                <span class="text-muted">Unknown</span>
-              {% endif %}
-            </dd>
-
-            <dt class="col-sm-5">Date of Birth</dt>
-            <dd class="col-sm-7">
-              {% if object.dob %}
-                {{ object.dob|date:"d M Y" }}
-                {% with age=object.get_age %}
-                  {% if age %}<span class="text-muted ms-1">({{ age }} yrs)</span>{% endif %}
-                {% endwith %}
-              {% else %}—{% endif %}
-            </dd>
-
-            <dt class="col-sm-5">Date Attains 60</dt>
-            <dd class="col-sm-7">
-              {% if object.date_60 %}{{ object.date_60|date:"d M Y" }}{% else %}—{% endif %}
-            </dd>
-
-            <dt class="col-sm-5">Qualification</dt>
-            <dd class="col-sm-7">{{ object.qualification|default:"—" }}</dd>
-
-            <dt class="col-sm-5">Computer Knowledge</dt>
-            <dd class="col-sm-7">
-              {% if object.computer_knowledge %}
-                <span class="badge bg-success">Yes</span>
-              {% else %}
-                <span class="badge bg-secondary">No</span>
-              {% endif %}
-            </dd>
-          </dl>
+      <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-dark text-white fw-semibold">Personal Information</div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5">Gender</dt>
+              <dd class="col-sm-7">
+                {{ object.get_gender_display }}
+              </dd>
+              <dt class="col-sm-5">Category</dt>
+              <dd class="col-sm-7">
+                {{ object.get_category_display }}
+              </dd>
+              <dt class="col-sm-5">Blood Group</dt>
+              <dd class="col-sm-7">
+                {% if object.blood_group != "UNK" %}
+                  <span class="badge bg-danger">{{ object.blood_group }}</span>
+                {% else %}
+                  <span class="text-muted">Unknown</span>
+                {% endif %}
+              </dd>
+              <dt class="col-sm-5">Date of Birth</dt>
+              <dd class="col-sm-7">
+                {% if object.dob %}
+                  {{ object.dob|date:"d M Y" }}
+                  {% with age=object.get_age %}
+                    {% if age %}<span class="text-muted ms-1">({{ age }} yrs)</span>{% endif %}
+                  {% endwith %}
+                {% else %}
+                  —
+                {% endif %}
+              </dd>
+              <dt class="col-sm-5">Date Attains 60</dt>
+              <dd class="col-sm-7">
+                {% if object.date_60 %}
+                  {{ object.date_60|date:"d M Y" }}
+                {% else %}
+                  —
+                {% endif %}
+              </dd>
+              <dt class="col-sm-5">Qualification</dt>
+              <dd class="col-sm-7">
+                {{ object.qualification|default:"—" }}
+              </dd>
+              <dt class="col-sm-5">Computer Knowledge</dt>
+              <dd class="col-sm-7">
+                {% if object.computer_knowledge %}
+                  <span class="badge bg-success">Yes</span>
+                {% else %}
+                  <span class="badge bg-secondary">No</span>
+                {% endif %}
+              </dd>
+            </dl>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-dark text-white fw-semibold">Contact &amp; Government IDs</div>
-        <div class="card-body">
-          <dl class="row mb-0">
-            <dt class="col-sm-5">Mobile</dt>
-            <dd class="col-sm-7">{{ object.mobile|default:"—" }}</dd>
-
-            <dt class="col-sm-5">Email</dt>
-            <dd class="col-sm-7">{{ object.email|default:"—" }}</dd>
-
-            <dt class="col-sm-5">Aadhaar No.</dt>
-            <dd class="col-sm-7">{{ object.aadhar_no|default:"—" }}</dd>
-
-            <dt class="col-sm-5">HRMS ID</dt>
-            <dd class="col-sm-7">{{ object.hrms_id|default:"—" }}</dd>
-
-            <dt class="col-sm-5">Swasthya Sathi</dt>
-            <dd class="col-sm-7">
-              {% if object.swasthya_sathi %}
-                <span class="badge bg-success">Enrolled</span>
-              {% else %}
-                <span class="badge bg-secondary">No</span>
-              {% endif %}
-            </dd>
-
-            <dt class="col-sm-5">Guardian / Address</dt>
-            <dd class="col-sm-7">
-              <span class="text-muted small">{{ object.guardian_address|default:"—"|truncatechars:100 }}</span>
-            </dd>
-          </dl>
+      <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-dark text-white fw-semibold">Contact &amp; Government IDs</div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5">Mobile</dt>
+              <dd class="col-sm-7">
+                {{ object.mobile|default:"—" }}
+              </dd>
+              <dt class="col-sm-5">Email</dt>
+              <dd class="col-sm-7">
+                {{ object.email|default:"—" }}
+              </dd>
+              <dt class="col-sm-5">Aadhaar No.</dt>
+              <dd class="col-sm-7">
+                {{ object.aadhar_no|default:"—" }}
+              </dd>
+              <dt class="col-sm-5">HRMS ID</dt>
+              <dd class="col-sm-7">
+                {{ object.hrms_id|default:"—" }}
+              </dd>
+              <dt class="col-sm-5">Swasthya Sathi</dt>
+              <dd class="col-sm-7">
+                {% if object.swasthya_sathi %}
+                  <span class="badge bg-success">Enrolled</span>
+                {% else %}
+                  <span class="badge bg-secondary">No</span>
+                {% endif %}
+              </dd>
+              <dt class="col-sm-5">Guardian / Address</dt>
+              <dd class="col-sm-7">
+                <span class="text-muted small">{{ object.guardian_address|default:"—"|truncatechars:100 }}</span>
+              </dd>
+            </dl>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-dark text-white fw-semibold">Training &amp; Activities</div>
-        <div class="card-body">
-          <dl class="row mb-0">
-            <dt class="col-sm-5">Basic Training</dt>
-            <dd class="col-sm-7">
-              <span class="small text-muted">{{ object.basic_training_details|default:"—"|truncatechars:200 }}</span>
-            </dd>
-
-            <dt class="col-sm-5">Special Training</dt>
-            <dd class="col-sm-7">
-              <span class="small text-muted">{{ object.special_training_details|default:"—"|truncatechars:200 }}</span>
-            </dd>
-
-            <dt class="col-sm-5">Structured records</dt>
-            <dd class="col-sm-7">
-              {% if object.training_attendances.all %}
-                <ul class="small mb-0 ps-3">
-                  {% for att in object.training_attendances.all %}
-                  <li>
-                    <a href="{% url 'training:instance-detail' att.training_instance.pk %}">{{ att.training_instance.training.name }}</a>
-                    <span class="text-muted">
-                      — {{ att.training_instance.location|default:"—" }}
-                      {% if att.training_instance.start_date %}
-                        ({{ att.training_instance.start_date|date:"d M Y" }}{% if att.training_instance.end_date %} – {{ att.training_instance.end_date|date:"d M Y" }}{% endif %})
-                      {% endif %}
-                    </span>
-                  </li>
-                  {% endfor %}
-                </ul>
-              {% else %}
-                <span class="text-muted small">No linked TrainingInstance rows yet (run import command).</span>
-              {% endif %}
-            </dd>
-
-            <dt class="col-sm-5">Extra Activities</dt>
-            <dd class="col-sm-7">
-              <span class="small text-muted">{{ object.extra_activities|default:"—"|truncatechars:200 }}</span>
-            </dd>
-
-            <dt class="col-sm-5">Bank Details</dt>
-            <dd class="col-sm-7">
-              <span class="small text-muted">{{ object.bank_details|default:"—"|truncatechars:100 }}</span>
-            </dd>
-
-            <dt class="col-sm-5">Documents Ref</dt>
-            <dd class="col-sm-7">
-              <span class="small text-muted">{{ object.documents_ref|default:"—" }}</span>
-            </dd>
-          </dl>
+      <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-dark text-white fw-semibold">Training &amp; Activities</div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5">Basic Training</dt>
+              <dd class="col-sm-7">
+                <span class="small text-muted">{{ object.basic_training_details|default:"—"|truncatechars:200 }}</span>
+              </dd>
+              <dt class="col-sm-5">Special Training</dt>
+              <dd class="col-sm-7">
+                <span class="small text-muted">{{ object.special_training_details|default:"—"|truncatechars:200 }}</span>
+              </dd>
+              <dt class="col-sm-5">Structured records</dt>
+              <dd class="col-sm-7">
+                {% if object.training_attendances.all %}
+                  <ul class="small mb-0 ps-3">
+                    {% for att in object.training_attendances.all %}
+                      <li>
+                        <a href="{% url 'training:instance-detail' att.training_instance.pk %}">{{ att.training_instance.training.name }}</a>
+                        <span class="text-muted">
+                          — {{ att.training_instance.location|default:"—" }}
+                          {% if att.training_instance.start_date %}
+                            ({{ att.training_instance.start_date|date:"d M Y" }}
+                            {% if att.training_instance.end_date %}– {{ att.training_instance.end_date|date:"d M Y" }}{% endif %}
+                            )
+                          {% endif %}
+                        </span>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <span class="text-muted small">No linked TrainingInstance rows yet (run import command).</span>
+                {% endif %}
+              </dd>
+              <dt class="col-sm-5">Extra Activities</dt>
+              <dd class="col-sm-7">
+                <span class="small text-muted">{{ object.extra_activities|default:"—"|truncatechars:200 }}</span>
+              </dd>
+              <dt class="col-sm-5">Bank Details</dt>
+              <dd class="col-sm-7">
+                <span class="small text-muted">{{ object.bank_details|default:"—"|truncatechars:100 }}</span>
+              </dd>
+              {# documents_ref is the relative path/filename under Django MEDIA (see MEDIA_ROOT / S3 media/). #}
+              <dt class="col-sm-5">Documents Ref</dt>
+              <dd class="col-sm-7">
+                {% if object.documents_file_url %}
+                  {# Opens the PDF in a new tab; rel=noopener avoids the new page accessing window.opener. #}
+                  <a href="{{ object.documents_file_url }}"
+                     class="small"
+                     target="_blank"
+                     rel="noopener noreferrer">View document</a>
+                  <span class="small text-muted ms-1">({{ object.documents_ref }})</span>
+                {% else %}
+                  <span class="small text-muted">—</span>
+                {% endif %}
+              </dd>
+            </dl>
+          </div>
         </div>
       </div>
-    </div>
-
-    {% comment %}
+      {% comment %}
     Service deployment summary for wages / attendance:
     - Incidents = team deployment (this volunteer’s assignment to each incident).
     - Office duty = individual (per volunteer), not a unit team operation.
     - Year table: calendar days split by year (operational vs office).
     - Log table: incident rows + this volunteer’s office-duty periods with dates.
     - Office duty actions: UIC/Admin only; Start uses HTML5 date input; End closes this volunteer’s open period.
-    {% endcomment %}
-    <div class="col-12">
-      <div class="card shadow-sm">
-        <div class="card-header bg-dark text-white fw-semibold">Service log &amp; deployment summary</div>
-        <div class="card-body">
-          {% if service_year_summary %}
-          <h6 class="text-secondary small text-uppercase mb-2">Days served by calendar year</h6>
-          <div class="table-responsive mb-4">
-            <table class="table table-sm table-bordered align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th scope="col">Year</th>
-                  <th scope="col" class="text-end">Operational (incident)</th>
-                  <th scope="col" class="text-end">Office duty</th>
-                  <th scope="col" class="text-end">Total (days)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in service_year_summary %}
-                <tr>
-                  <td>{{ row.year }}</td>
-                  <td class="text-end">{{ row.operational_days }}</td>
-                  <td class="text-end">{{ row.office_days }}</td>
-                  <td class="text-end fw-semibold">{{ row.total_days }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-          <p class="text-muted small mb-4">No operational or office deployments recorded yet.</p>
-          {% endif %}
-
-          <h6 class="text-secondary small text-uppercase mb-2">Deployment log</h6>
-          {% if service_log_rows %}
-          <div class="table-responsive">
-            <table class="table table-sm table-striped align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th scope="col">Type</th>
-                  <th scope="col">Reference</th>
-                  <th scope="col">Period</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in service_log_rows %}
-                <tr>
-                  <td>
-                    {% if row.deployment_kind == "OPERATIONAL" %}
-                      <span class="badge bg-danger">Incident</span>
-                    {% else %}
-                      <span class="badge bg-primary">Office</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if row.incident_pk %}
-                      <a href="{% url 'incidents:incident-detail' row.incident_pk %}">{{ row.label }}</a>
-                    {% else %}
-                      {{ row.label }}
-                    {% endif %}
-                  </td>
-                  <td class="text-nowrap small">
-                    {{ row.period_start|date:"d M Y" }}
-                    —
-                    {% if row.period_end %}
-                      {{ row.period_end|date:"d M Y" }}
-                    {% else %}
-                      <span class="text-warning">Ongoing</span>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-          <p class="text-muted small mb-0">No deployments in the log.</p>
-          {% endif %}
-
-          {% if can_log_office_duty %}
-          <hr class="my-4">
-          <h6 class="text-secondary small text-uppercase mb-3">Office duty (this unit)</h6>
-          <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-6 col-lg-5">
-              <form method="post" action="{% url 'personnel:volunteer-office-duty-start' object.pk %}" class="d-flex flex-wrap gap-2 align-items-end">
-                {% csrf_token %}
-                <div class="flex-grow-1" style="min-width: 12rem;">
-                  <label class="form-label small mb-1" for="id_office_duty_start_date">Start office duty (date)</label>
-                  {{ office_duty_start_form.start_date }}
+      {% endcomment %}
+      <div class="col-12">
+        <div class="card shadow-sm">
+          <div class="card-header bg-dark text-white fw-semibold">Service log &amp; deployment summary</div>
+          <div class="card-body">
+            {% if service_year_summary %}
+              <h6 class="text-secondary small text-uppercase mb-2">Days served by calendar year</h6>
+              <div class="table-responsive mb-4">
+                <table class="table table-sm table-bordered align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th scope="col">Year</th>
+                      <th scope="col" class="text-end">Operational (incident)</th>
+                      <th scope="col" class="text-end">Office duty</th>
+                      <th scope="col" class="text-end">Total (days)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in service_year_summary %}
+                      <tr>
+                        <td>{{ row.year }}</td>
+                        <td class="text-end">{{ row.operational_days }}</td>
+                        <td class="text-end">{{ row.office_days }}</td>
+                        <td class="text-end fw-semibold">{{ row.total_days }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="text-muted small mb-4">No operational or office deployments recorded yet.</p>
+            {% endif %}
+            <h6 class="text-secondary small text-uppercase mb-2">Deployment log</h6>
+            {% if service_log_rows %}
+              <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th scope="col">Type</th>
+                      <th scope="col">Reference</th>
+                      <th scope="col">Period</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in service_log_rows %}
+                      <tr>
+                        <td>
+                          {% if row.deployment_kind == "OPERATIONAL" %}
+                            <span class="badge bg-danger">Incident</span>
+                          {% else %}
+                            <span class="badge bg-primary">Office</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if row.incident_pk %}
+                            <a href="{% url 'incidents:incident-detail' row.incident_pk %}">{{ row.label }}</a>
+                          {% else %}
+                            {{ row.label }}
+                          {% endif %}
+                        </td>
+                        <td class="text-nowrap small">
+                          {{ row.period_start|date:"d M Y" }}
+                          —
+                          {% if row.period_end %}
+                            {{ row.period_end|date:"d M Y" }}
+                          {% else %}
+                            <span class="text-warning">Ongoing</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="text-muted small mb-0">No deployments in the log.</p>
+            {% endif %}
+            {% if can_log_office_duty %}
+              <hr class="my-4" />
+              <h6 class="text-secondary small text-uppercase mb-3">Office duty (this unit)</h6>
+              <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-6 col-lg-5">
+                  <form method="post"
+                        action="{% url 'personnel:volunteer-office-duty-start' object.pk %}"
+                        class="d-flex flex-wrap gap-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="flex-grow-1" style="min-width: 12rem;">
+                      <label class="form-label small mb-1" for="id_office_duty_start_date">Start office duty (date)</label>
+                      {{ office_duty_start_form.start_date }}
+                    </div>
+                    <button type="submit"
+                            class="btn btn-primary btn-sm"
+                            {% if open_office_duty %}disabled title="End the current office duty before starting a new one"{% endif %}>
+                      Start office duty
+                    </button>
+                  </form>
+                  {% if open_office_duty %}
+                    <p class="small text-muted mt-2 mb-0">Open period began {{ open_office_duty.started_at|date:"d M Y, H:i" }}.</p>
+                  {% endif %}
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm" {% if open_office_duty %}disabled title="End the current office duty before starting a new one"{% endif %}>
-                  Start office duty
-                </button>
-              </form>
-              {% if open_office_duty %}
-              <p class="small text-muted mt-2 mb-0">
-                Open period began {{ open_office_duty.started_at|date:"d M Y, H:i" }}.
+                <div class="col-12 col-md-6 col-lg-4">
+                  <form method="post"
+                        action="{% url 'personnel:volunteer-office-duty-end' object.pk %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="btn btn-outline-secondary btn-sm"
+                            {% if not open_office_duty %}disabled title="No open office duty to end"{% endif %}>
+                      End office duty
+                    </button>
+                  </form>
+                </div>
+              </div>
+            {% else %}
+              <p class="text-muted small mb-0 mt-3">
+                Office duty can be logged by administrators or this volunteer&apos;s Unit In-Charge.
               </p>
-              {% endif %}
-            </div>
-            <div class="col-12 col-md-6 col-lg-4">
-              <form method="post" action="{% url 'personnel:volunteer-office-duty-end' object.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-outline-secondary btn-sm" {% if not open_office_duty %}disabled title="No open office duty to end"{% endif %}>
-                  End office duty
-                </button>
-              </form>
-            </div>
+            {% endif %}
           </div>
-          {% else %}
-          <p class="text-muted small mb-0 mt-3">Office duty can be logged by administrators or this volunteer&apos;s Unit In-Charge.</p>
-          {% endif %}
         </div>
       </div>
     </div>
-
+    <p class="text-muted small mt-3">
+      Record created {{ object.created_at|date:"d M Y, H:i" }}
+      &nbsp;&middot;&nbsp;
+      Last updated {{ object.updated_at|date:"d M Y, H:i" }}
+    </p>
   </div>
-
-  <p class="text-muted small mt-3">
-    Record created {{ object.created_at|date:"d M Y, H:i" }}
-    &nbsp;&middot;&nbsp;
-    Last updated {{ object.updated_at|date:"d M Y, H:i" }}
-  </p>
-
-</div>
 {% endblock content %}

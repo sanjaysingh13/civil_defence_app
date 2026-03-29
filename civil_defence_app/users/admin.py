@@ -29,13 +29,26 @@ class UserAdmin(auth_admin.UserAdmin):
     autocomplete_fields uses the Unit admin's search_fields for a
     type-ahead lookup instead of a giant dropdown.
     """
-    form     = UserAdminChangeForm
+
+    form = UserAdminChangeForm
     add_form = UserAdminCreationForm
 
     # ── Fieldsets control the layout of the change-user form ─────────────────
     fieldsets = (
         (None, {"fields": ("username", "password")}),
-        (_("Personal info"), {"fields": ("name", "email")}),
+        (
+            _("Personal info"),
+            {
+                "fields": (
+                    "first_name",
+                    "last_name",
+                    "name",
+                    "email",
+                    "rank",
+                    "telephone",
+                ),
+            },
+        ),
         (
             # New section: Civil Defence-specific fields
             _("Civil Defence Role & Unit"),
@@ -57,10 +70,48 @@ class UserAdmin(auth_admin.UserAdmin):
     )
 
     # ── Columns visible in the admin list view ────────────────────────────────
-    list_display  = ["username", "name", "role", "unit", "is_superuser"]
-    list_filter   = ["role", "unit", "is_superuser", "is_active"]
-    search_fields = ["name", "username", "email"]
+    list_display = [
+        "username",
+        "first_name",
+        "last_name",
+        "name",
+        "rank",
+        "telephone",
+        "role",
+        "unit",
+        "is_superuser",
+    ]
+    list_filter = ["role", "unit", "is_superuser", "is_active"]
+    search_fields = [
+        "name",
+        "first_name",
+        "last_name",
+        "username",
+        "email",
+        "rank",
+        "telephone",
+    ]
 
     # autocomplete_fields requires the related model's admin to define
     # search_fields — Unit admin already has this set.
     autocomplete_fields = ["unit"]
+
+    # ── Add-user form: same profile fields as signup (password optional in admin)
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "username",
+                    "first_name",
+                    "last_name",
+                    "rank",
+                    "telephone",
+                    "usable_password",
+                    "password1",
+                    "password2",
+                ),
+            },
+        ),
+    )

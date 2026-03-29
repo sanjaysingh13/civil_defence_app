@@ -1,8 +1,22 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import CharField
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TELEPHONE VALIDATION (MODEL LAYER)
+#
+# RegexValidator runs only when the field is non-empty if blank=True — Django
+# skips validators for empty values in CharField.clean(). Signup/admin forms
+# require 10 digits; optional blank in the model keeps legacy rows valid.
+# ─────────────────────────────────────────────────────────────────────────────
+
+TELEPHONE_VALIDATOR = RegexValidator(
+    regex=r"^\d{10}$",
+    message=_("Enter exactly 10 digits (no spaces or dashes)."),
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -17,30 +31,39 @@ from django.utils.translation import gettext_lazy as _
 #   VOLUNTEER      → field operative; read-only access to their own records
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class UserRole(models.TextChoices):
-    ADMIN          = "ADMIN",          _("Admin")
+    ADMIN = "ADMIN", _("Admin")
     UNIT_IN_CHARGE = "UNIT_IN_CHARGE", _("Unit In-Charge")
-    VOLUNTEER      = "VOLUNTEER",      _("Volunteer")
+    VOLUNTEER = "VOLUNTEER", _("Volunteer")
 
 
 class User(AbstractUser):
     """
     Custom user model for Civil Defence App.
 
-    Extends Django's AbstractUser (which already provides username, password,
-    email, is_staff, is_superuser, date_joined, etc.) with:
+    Extends Django's AbstractUser (username, password, email, first_name,
+    last_name, is_staff, is_superuser, date_joined, etc.) with:
 
-      name  — single full-name field (replaces the split first_name + last_name
-               that don't suit Indian naming conventions)
-      role  — one of ADMIN / UNIT_IN_CHARGE / VOLUNTEER
-      unit  — FK to the Unit (district) this user is associated with;
-               relevant mainly for UNIT_IN_CHARGE accounts
+      name       — optional legacy / display full name (can mirror first + last)
+      rank       — user's rank or designation
+      telephone  — 10-digit contact number
+      role       — ADMIN / UNIT_IN_CHARGE / VOLUNTEER
+      unit       — FK to the district Unit (mainly for Unit In-Charge)
     """
 
-    # Single full-name field — replaces the Django default split-name fields.
+    # Optional full-name string kept for templates, search, and older data;
+    # signup can set this from first_name + last_name for consistency.
     name = CharField(_("Name of User"), blank=True, max_length=255)
-    first_name = None  # type: ignore[assignment]
-    last_name  = None  # type: ignore[assignment]
+
+    # ── Rank & telephone (Civil Defence profile) ───────────────────────────
+    rank = CharField(_("Rank"), max_length=128, blank=True)
+    telephone = CharField(
+        _("Telephone"),
+        max_length=10,
+        blank=True,
+        validators=[TELEPHONE_VALIDATOR],
+    )
 
     # ── Role ─────────────────────────────────────────────────────────────────
     # CharField with choices stores the short code (e.g. "UNIT_IN_CHARGE")
@@ -49,7 +72,7 @@ class User(AbstractUser):
     role = CharField(
         _("Role"),
         max_length=16,
-        choices=UserRole.choices,
+        choices=UserRole,
         default=UserRole.VOLUNTEER,
         help_text=_("Determines what the user can see and do in the system."),
     )
@@ -68,7 +91,7 @@ class User(AbstractUser):
         related_name="user_accounts",
         help_text=_(
             "The district unit this user manages / belongs to. "
-            "Required for Unit In-Charge accounts."
+            "Required for Unit In-Charge accounts.",
         ),
     )
 

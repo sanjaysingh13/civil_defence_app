@@ -3,11 +3,41 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include
 from django.urls import path
+from django.urls import re_path
 from django.views import defaults as default_views
 from django.views.generic import TemplateView
+from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
+
+
+def _local_media_urlpatterns():
+    """
+    ``static(MEDIA_URL, …)`` only registers /media/ when DEBUG is True, so
+    Gunicorn + production settings would 404 volunteer PDFs on disk.  When
+    ``DJANGO_SERVE_LOCAL_MEDIA`` is set (see ``config/gunicorn/prod_local.py``)
+    and ``MEDIA_URL`` is a site-relative path (not S3), serve files from
+    ``MEDIA_ROOT`` with ``django.views.static.serve``.
+    """
+    if settings.DEBUG:
+        return []
+    if not getattr(settings, "DJANGO_SERVE_LOCAL_MEDIA", False):
+        return []
+    media_url = settings.MEDIA_URL
+    if not media_url.startswith("/"):
+        return []
+    prefix = "/".join(segment for segment in media_url.split("/") if segment)
+    if not prefix:
+        return []
+    return [
+        re_path(
+            rf"^{prefix}/(?P<path>.*)$",
+            serve,
+            {"document_root": settings.MEDIA_ROOT},
+        ),
+    ]
+
 
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
@@ -20,21 +50,23 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     # User management
     path("users/", include("civil_defence_app.users.urls", namespace="users")),
-    path("equipment/", include("civil_defence_app.equipment.urls", namespace="equipment")),
+    path(
+        "equipment/", include("civil_defence_app.equipment.urls", namespace="equipment")
+    ),
     path("fleet/", include("civil_defence_app.fleet.urls", namespace="fleet")),
-    path("incident/", include("civil_defence_app.incidents.urls", namespace="incidents")),
-    path("personnel/", include("civil_defence_app.personnel.urls", namespace="personnel")),
+    path(
+        "incident/", include("civil_defence_app.incidents.urls", namespace="incidents")
+    ),
+    path(
+        "personnel/", include("civil_defence_app.personnel.urls", namespace="personnel")
+    ),
     path("training/", include("civil_defence_app.training.urls", namespace="training")),
-
-
-
-
-
     path("accounts/", include("allauth.urls")),
     # Your stuff: custom urls includes go here
     # ...
-    # Media files
+    # Media files (DEBUG True), or Gunicorn + DJANGO_SERVE_LOCAL_MEDIA (see above)
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
+    *_local_media_urlpatterns(),
 ]
 
 # API URLS

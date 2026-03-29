@@ -6,7 +6,12 @@ from .base import env
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
-DEBUG = False
+#
+# Default True for local dev: ``django.conf.urls.static.static`` only mounts
+# ``MEDIA_URL`` → ``MEDIA_ROOT`` when DEBUG is True, so volunteer PDF links work
+# on runserver. Set ``DJANGO_DEBUG=false`` in the environment when you need
+# production-like behaviour (then use nginx or S3 for /media/, or a tunnel).
+DEBUG = env.bool("DJANGO_DEBUG", default=True)
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = env(
     "DJANGO_SECRET_KEY",

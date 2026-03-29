@@ -21,6 +21,10 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.production"
 # use only https://your-domain in the browser.
 os.environ.setdefault("DJANGO_INSECURE_LOCAL_COOKIES", "True")
 
+# With production settings, DEBUG is False so Django does not mount /media/; this
+# makes Gunicorn serve volunteer uploads from MEDIA_ROOT (filesystem storage only).
+os.environ.setdefault("DJANGO_SERVE_LOCAL_MEDIA", "True")
+
 # Project root is the parent of the config/ package (directory that contains manage.py).
 _root = Path(__file__).resolve().parent.parent.parent
 _run_dir = _root / "run"
@@ -34,4 +38,3 @@ errorlog = "-"
 capture_output = False
 daemon = False
 pidfile = str(_run_dir / "gunicorn.pid")
-

@@ -1,0 +1,146 @@
+{% extends "admin/change_form.html" %}
+
+{#
+  Asset-tag helper script is inlined here (not via ModelAdmin.Media) because:
+  - Media.js is included on every admin view for this model, including the
+    changelist, which triggered static() for every list page.
+  - CompressedManifestStaticFilesStorage resolves paths through collectstatic's
+    manifest; a new file that was not yet collected caused a 500 on /admin/.../equipment/
+
+  Inline JS avoids manifest lookup for this small script. The logic only runs on
+  add-form pages (see isEquipmentAddPage inside the script).
+#}
+{% block extrahead %}
+  {{ block.super }}
+  <script>
+    window.__equipmentNextAssetTagUrl = "{% url 'admin:equipment_equipment_next_asset_tag' %}";
+  </script>
+  <script>
+    (function() {
+      "use strict";
+
+      function isEquipmentAddPage() {
+        var b = document.body;
+        if (!b || !b.classList) {
+          return false;
+        }
+        return (
+          b.classList.contains("app-equipment") &&
+          b.classList.contains("model-equipment") &&
+          b.classList.contains("add-form")
+        );
+      }
+
+      function nextAssetTagUrl() {
+        return window.__equipmentNextAssetTagUrl || "";
+      }
+
+      function readUnitId() {
+        var el = document.getElementById("id_unit");
+        return el && el.value ? el.value : "";
+      }
+
+      function readEquipmentTypeId() {
+        var el = document.getElementById("id_equipment_type");
+        return el && el.value ? el.value : "";
+      }
+      var debounceTimer = null;
+
+      function debounce(fn, ms) {
+        return function() {
+          var args = arguments;
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+          }
+          debounceTimer = setTimeout(function() {
+            fn.apply(null, args);
+          }, ms);
+        };
+      }
+
+      function fetchSuggestedUniqueId() {
+        var baseUrl = nextAssetTagUrl();
+        if (!baseUrl) {
+          return;
+        }
+        var unit = readUnitId();
+        var et = readEquipmentTypeId();
+        if (!unit || !et) {
+          return;
+        }
+        var url =
+          baseUrl +
+          (baseUrl.indexOf("?") >= 0 ? "&" : "?") +
+          "unit=" +
+          encodeURIComponent(unit) +
+          "&equipment_type=" +
+          encodeURIComponent(et);
+        fetch(url, {
+            credentials: "same-origin",
+            headers: {
+              Accept: "application/json"
+            },
+          })
+          .then(function(r) {
+            return r.json().then(function(data) {
+              return {
+                ok: r.ok,
+                data: data
+              };
+            });
+          })
+          .then(function(result) {
+            if (!result.ok || !result.data || !result.data.unique_id) {
+              return;
+            }
+            var input = document.getElementById("id_unique_id");
+            if (!input) {
+              return;
+            }
+            if (input.dataset.equipmentAssetTagManual === "1") {
+              return;
+            }
+            input.value = result.data.unique_id;
+          })
+          .catch(function() {});
+      }
+      var scheduleFetch = debounce(fetchSuggestedUniqueId, 250);
+
+      function init() {
+        if (!isEquipmentAddPage()) {
+          return;
+        }
+        var uniqueInput = document.getElementById("id_unique_id");
+        if (uniqueInput) {
+          uniqueInput.addEventListener("input", function() {
+            uniqueInput.dataset.equipmentAssetTagManual = "1";
+          });
+        }
+
+        function onDepsChange() {
+          if (uniqueInput) {
+            uniqueInput.dataset.equipmentAssetTagManual = "0";
+          }
+          scheduleFetch();
+        }
+        var unitEl = document.getElementById("id_unit");
+        var typeEl = document.getElementById("id_equipment_type");
+        if (unitEl) {
+          unitEl.addEventListener("change", onDepsChange);
+        }
+        if (typeEl) {
+          typeEl.addEventListener("change", onDepsChange);
+        }
+        if (typeof django !== "undefined" && django.jQuery) {
+          var $ = django.jQuery;
+          $(document).on("select2:select", "#id_unit", onDepsChange);
+        }
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+{% endblock %}

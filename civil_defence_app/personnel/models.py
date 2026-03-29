@@ -21,8 +21,8 @@ object as a string (e.g. in the admin, dropdowns, shell).
 
 from django.conf import settings
 from django.db import models
+from django.utils.encoding import iri_to_uri
 from django.utils.translation import gettext_lazy as _
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CHOICES
@@ -32,33 +32,37 @@ from django.utils.translation import gettext_lazy as _
 # Using choices enforces consistency and lets forms auto-generate dropdowns.
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class GenderChoice(models.TextChoices):
     """Biological sex / gender of the volunteer as recorded in the source data."""
-    MALE   = "M", _("Male")
+
+    MALE = "M", _("Male")
     FEMALE = "F", _("Female")
-    OTHER  = "O", _("Other / Not Specified")
+    OTHER = "O", _("Other / Not Specified")
 
 
 class CategoryChoice(models.TextChoices):
     """Social category as per Indian government classification."""
-    GENERAL = "GEN",   _("General")
-    SC      = "SC",    _("Scheduled Caste")
-    ST      = "ST",    _("Scheduled Tribe")
-    OBC_A   = "OBC-A", _("OBC-A")
-    OBC_B   = "OBC-B", _("OBC-B")
-    OTHER   = "OTHER", _("Other")
+
+    GENERAL = "GEN", _("General")
+    SC = "SC", _("Scheduled Caste")
+    ST = "ST", _("Scheduled Tribe")
+    OBC_A = "OBC-A", _("OBC-A")
+    OBC_B = "OBC-B", _("OBC-B")
+    OTHER = "OTHER", _("Other")
 
 
 class BloodGroupChoice(models.TextChoices):
     """ABO + Rh blood group system."""
-    A_POS  = "A+",  _("A+")
-    A_NEG  = "A-",  _("A-")
-    B_POS  = "B+",  _("B+")
-    B_NEG  = "B-",  _("B-")
+
+    A_POS = "A+", _("A+")
+    A_NEG = "A-", _("A-")
+    B_POS = "B+", _("B+")
+    B_NEG = "B-", _("B-")
     AB_POS = "AB+", _("AB+")
     AB_NEG = "AB-", _("AB-")
-    O_POS  = "O+",  _("O+")
-    O_NEG  = "O-",  _("O-")
+    O_POS = "O+", _("O+")
+    O_NEG = "O-", _("O-")
     UNKNOWN = "UNK", _("Unknown")
 
 
@@ -70,6 +74,7 @@ class BloodGroupChoice(models.TextChoices):
 # We use this to add created_at / updated_at to every model without repeating
 # the field definitions everywhere.
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TimeStampedModel(models.Model):
     """Mixin that adds created_at and updated_at to any model."""
@@ -96,6 +101,7 @@ class TimeStampedModel(models.Model):
 # Incidents.  Other apps reference it via a ForeignKey to "personnel.Unit".
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class Unit(TimeStampedModel):
     """
     A Civil Defence district / operational unit.
@@ -109,7 +115,7 @@ class Unit(TimeStampedModel):
     name = models.CharField(
         _("Unit Name"),
         max_length=120,
-        unique=True,           # No two units can have the same name.
+        unique=True,  # No two units can have the same name.
         help_text=_("Official district / unit name (e.g. ALIPURDUAR)"),
     )
 
@@ -126,9 +132,9 @@ class Unit(TimeStampedModel):
     description = models.TextField(_("Description"), blank=True, default="")
 
     class Meta:
-        verbose_name        = _("Unit")
+        verbose_name = _("Unit")
         verbose_name_plural = _("Units")
-        ordering            = ["name"]
+        ordering = ["name"]
 
     def __str__(self) -> str:
         return self.name
@@ -143,6 +149,7 @@ class Unit(TimeStampedModel):
 # basic_training, special_training) are stored as TextField to avoid
 # truncation; they can be parsed / structured later.
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class Volunteer(TimeStampedModel):
     """
@@ -194,21 +201,21 @@ class Volunteer(TimeStampedModel):
     gender = models.CharField(
         _("Gender"),
         max_length=1,
-        choices=GenderChoice.choices,
+        choices=GenderChoice,
         default=GenderChoice.OTHER,
     )
 
     category = models.CharField(
         _("Social Category"),
         max_length=6,
-        choices=CategoryChoice.choices,
+        choices=CategoryChoice,
         default=CategoryChoice.GENERAL,
     )
 
     blood_group = models.CharField(
         _("Blood Group"),
         max_length=4,
-        choices=BloodGroupChoice.choices,
+        choices=BloodGroupChoice,
         default=BloodGroupChoice.UNKNOWN,
     )
 
@@ -225,8 +232,10 @@ class Volunteer(TimeStampedModel):
     # ── Contact Information ───────────────────────────────────────────────────
 
     # Some rows contain multiple numbers separated by commas/spaces (up to 50 chars).
-    mobile = models.CharField(_("Mobile / Phone No."), max_length=60, blank=True, default="")
-    email  = models.EmailField(_("Email"), max_length=254, blank=True, default="")
+    mobile = models.CharField(
+        _("Mobile / Phone No."), max_length=60, blank=True, default=""
+    )
+    email = models.EmailField(_("Email"), max_length=254, blank=True, default="")
 
     # Free-text blob: "Father's Name … Permanent Address".
     # Kept as-is from source; structured address fields can be added later.
@@ -241,7 +250,9 @@ class Volunteer(TimeStampedModel):
     # Aadhaar is a 12-digit national ID.  Stored as string to preserve leading
     # zeros and spaces.  Some entries have spaces plus extra digits ("1926 0447 0225 0992 3"),
     # so we allow up to 30 chars.
-    aadhar_no = models.CharField(_("Aadhaar Card No."), max_length=30, blank=True, default="")
+    aadhar_no = models.CharField(
+        _("Aadhaar Card No."), max_length=30, blank=True, default=""
+    )
 
     # HRMS is a government HR management system ID (e.g. "W2017021570").
     hrms_id = models.CharField(_("HRMS ID"), max_length=30, blank=True, default="")
@@ -325,9 +336,9 @@ class Volunteer(TimeStampedModel):
     )
 
     class Meta:
-        verbose_name        = _("Volunteer")
+        verbose_name = _("Volunteer")
         verbose_name_plural = _("Volunteers")
-        ordering            = ["unit", "serial_no"]
+        ordering = ["unit", "serial_no"]
 
         # Composite uniqueness: a serial number is unique within a unit.
         constraints = [
@@ -345,12 +356,32 @@ class Volunteer(TimeStampedModel):
         if not self.dob:
             return None
         from django.utils import timezone
+
         today = timezone.now().date()
         age = today.year - self.dob.year
         # Subtract 1 if birthday has not yet occurred this year
         if (today.month, today.day) < (self.dob.month, self.dob.day):
             age -= 1
         return age
+
+    @property
+    def documents_file_url(self) -> str:
+        """
+        URL to the volunteer PDF (or other file) named in ``documents_ref``.
+
+        ``documents_ref`` is stored as a path relative to uploaded media: either
+        a bare filename (served from ``MEDIA_ROOT`` / the bucket ``media/`` prefix)
+        or a subpath such as ``volunteers/01_name.pdf``.  ``iri_to_uri`` turns
+        that into a valid URI (e.g. spaces become ``%20``) for use in ``<a href>``.
+        """
+        ref = (self.documents_ref or "").strip()
+        if not ref:
+            return ""
+        base = settings.MEDIA_URL
+        if not base.endswith("/"):
+            base = f"{base}/"
+        ref_norm = ref.replace("\\", "/").lstrip("/")
+        return iri_to_uri(f"{base}{ref_norm}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

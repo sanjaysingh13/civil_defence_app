@@ -107,7 +107,9 @@ if DJANGO_USE_AWS_STORAGE:
     AWS_S3_REGION_NAME = env("DJANGO_AWS_S3_REGION_NAME", default=None)
     # https://django-storages.readthedocs.io/en/latest/backends/amazon-S3.html#cloudfront
     AWS_S3_CUSTOM_DOMAIN = env("DJANGO_AWS_S3_CUSTOM_DOMAIN", default=None)
-    aws_s3_domain = AWS_S3_CUSTOM_DOMAIN or f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+    aws_s3_domain = (
+        AWS_S3_CUSTOM_DOMAIN or f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+    )
     # STATIC & MEDIA
     # ------------------------
     STORAGES = {
@@ -155,6 +157,12 @@ if not DJANGO_USE_AWS_STORAGE:
     # Allow collectstatic to succeed if a dependency references a missing static asset in the manifest.
     WHITENOISE_MANIFEST_STRICT = False
 
+# When True, ``config/urls.py`` serves ``/media/*`` from ``MEDIA_ROOT`` even if
+# ``DEBUG`` is False (e.g. Gunicorn + Cloudflare tunnel without nginx).  Default
+# False for real hosts (use nginx or S3).  ``config/gunicorn/prod_local.py``
+# sets ``DJANGO_SERVE_LOCAL_MEDIA=True`` via the environment unless you override.
+DJANGO_SERVE_LOCAL_MEDIA = env.bool("DJANGO_SERVE_LOCAL_MEDIA", default=False)
+
 # EMAIL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
@@ -176,18 +184,25 @@ ACCOUNT_EMAIL_SUBJECT_PREFIX = EMAIL_SUBJECT_PREFIX
 # Django Admin URL regex.
 ADMIN_URL = env("DJANGO_ADMIN_URL")
 
-# Anymail
+# Anymail / Brevo (optional override for local smoke tests)
 # ------------------------------------------------------------------------------
-# https://anymail.readthedocs.io/en/stable/installation/#installing-anymail
-INSTALLED_APPS += ["anymail"]
-# https://docs.djangoproject.com/en/dev/ref/settings/#email-backend
-# https://anymail.readthedocs.io/en/stable/installation/#anymail-settings-reference
-# https://anymail.readthedocs.io/en/stable/esps/brevo/
-EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
-ANYMAIL = {
-    "BREVO_API_KEY": env("BREVO_API_KEY"),
-    "BREVO_API_URL": env("BREVO_API_URL", default="https://api.brevo.com/v3/"),
-}
+# Default is Brevo. If ``BREVO_API_KEY`` is wrong or you run production settings
+# against http://127.0.0.1:8000/, signup/login can 500 when allauth sends
+# verification mail (AnymailRequestsAPIError 401). Set in your environment, e.g.::
+#
+#   DJANGO_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+#
+# Confirmation links then print in the process stdout; mandatory verification
+# still works. Real deploys should omit this and use a valid Brevo key.
+# ------------------------------------------------------------------------------
+_BREVO_EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+EMAIL_BACKEND = env("DJANGO_EMAIL_BACKEND", default=_BREVO_EMAIL_BACKEND)
+if EMAIL_BACKEND == _BREVO_EMAIL_BACKEND:
+    INSTALLED_APPS += ["anymail"]
+    ANYMAIL = {
+        "BREVO_API_KEY": env("BREVO_API_KEY"),
+        "BREVO_API_URL": env("BREVO_API_URL", default="https://api.brevo.com/v3/"),
+    }
 
 # Collectfasta
 # ------------------------------------------------------------------------------
