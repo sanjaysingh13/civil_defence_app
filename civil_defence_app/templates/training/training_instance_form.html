@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}New Training Batch — Civil Defence{% endblock title %}
+
+{% block css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css" integrity="sha512-ELV+xyi8IhEApPS/pSj66+Jiw+sOT1Mqkzlh8ExXihe4zfqbWkxPRi8wptXIO9g73FSlhmquFlUOuMSoXz5IRw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<style>
+  .ui-autocomplete { z-index: 2000; max-height: 280px; overflow-y: auto; overflow-x: hidden; }
+</style>
+{% endblock css %}
+
+{% block javascript %}
+{{ block.super }}
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js" integrity="sha512-57oZ/vW8ANMjR/KQ6Be9v/+/h6bq9/l3f0Oc7vn6qMqyhvPd1cvKBRWWpzu0QoneImqr2SkmO4MSqU+RpHom3Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+{% endblock javascript %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 820px;">
+
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0 fw-bold">New Training Batch</h2>
+      <small class="text-muted">
+        {% if is_admin %}Select programme, unit, dates, and enrol volunteers (any district).{% else %}
+        Batch is recorded for <strong>{{ request.user.unit.name }}</strong>; volunteers are limited to your unit.
+        {% endif %}
+      </small>
+    </div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'training:instance-list' %}">Batches</a></li>
+        <li class="breadcrumb-item active">New</li>
+      </ol>
+    </nav>
+  </div>
+
+  <form method="post" novalidate class="card shadow-sm" id="training-instance-form">
+    <div class="card-body">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="row g-3">
+        <div class="col-md-12">
+          <label class="form-label fw-semibold" for="id_training">Programme <span class="text-danger">*</span></label>
+          {{ form.training }}
+          {% for e in form.training.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+
+        {% if form.unit %}
+        <div class="col-md-12">
+          <label class="form-label fw-semibold" for="id_unit">Organising unit</label>
+          {{ form.unit }}
+        </div>
+        {% endif %}
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="id_start_date">Start date</label>
+          {{ form.start_date }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="id_end_date">End date</label>
+          {{ form.end_date }}
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label fw-semibold" for="id_location">Venue / location</label>
+          {{ form.location }}
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="id_batch_no">Batch / certificate prefix</label>
+          {{ form.batch_no }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="id_instructor">Instructor</label>
+          {{ form.instructor }}
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold" for="id_notes">Notes</label>
+          {{ form.notes }}
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold" id="volunteers-field-label" for="id_volunteers_autocomplete">
+            Volunteers to enrol <span class="text-danger">*</span>
+          </label>
+          <p class="form-text small text-muted mb-2" id="volunteers-field-help">{{ form.volunteers.help_text }}</p>
+
+          <input type="text" class="form-control" id="id_volunteers_autocomplete" placeholder="Type to search by name…" autocomplete="off" aria-labelledby="volunteers-field-label" />
+
+          <div class="d-flex flex-wrap gap-2 mt-2 mb-1" id="id_volunteers_chips" role="list"></div>
+
+          {# Values submitted to Django: option elements selected on this hidden multi-select. #}
+          <select name="volunteers" id="id_volunteers" multiple class="d-none" aria-hidden="true"></select>
+
+          {% for e in form.volunteers.errors %}
+            <div class="invalid-feedback d-block text-danger small">{{ e }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">Save batch &amp; enrolment</button>
+        <a href="{% url 'training:instance-list' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </div>
+  </form>
+
+</div>
+{% endblock content %}
+
+{% block inline_javascript %}
+<script>
+(function() {
+    /*
+     * Deferred jQuery (from base.html) loads before DOMContentLoaded completes; jQuery UI is also deferred.
+     * Wait for "load" so both are available, then wire autocomplete to JSON search and sync chips to #id_volunteers.
+     */
+    window.addEventListener("load", function() {
+        if (typeof jQuery === "undefined" || !jQuery.ui || !jQuery.ui.autocomplete) {
+            return;
+        }
+        var $ = jQuery;
+        var searchUrl = "{% url 'training:volunteer-search' %}";
+        var $select = $("#id_volunteers");
+        var $input = $("#id_volunteers_autocomplete");
+        var $chips = $("#id_volunteers_chips");
+        if (!$select.length || !$input.length) {
+            return;
+        }
+
+        function selectedIds() {
+            var raw = $select.val();
+            if (!raw) {
+                return [];
+            }
+            return Array.isArray(raw) ? raw.map(String) : [String(raw)];
+        }
+
+        function renderChips() {
+            $chips.empty();
+            var ids = selectedIds();
+            for (var i = 0; i < ids.length; i++) {
+                var id = ids[i];
+                var opt = $select.find("option").filter(function() {
+                    return String($(this).val()) === String(id);
+                });
+                var label = opt.length ? opt.text() : id;
+                var $chip = $('<span class="badge bg-secondary d-inline-flex align-items-center gap-1 py-2 px-2" role="listitem"></span>');
+                $chip.append($("<span></span>").text(label));
+                var $btn = $('<button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove"></button>');
+                (function(pk) {
+                    $btn.on("click", function() {
+                        $select.find("option").filter(function() {
+                            return String($(this).val()) === String(pk);
+                        }).remove();
+                        renderChips();
+                        $input.removeClass("is-invalid");
+                    });
+                })(id);
+                $chip.append($btn);
+                $chips.append($chip);
+            }
+        }
+
+        $input.autocomplete({
+            minLength: 1,
+            source: function(request, response) {
+                $.getJSON(searchUrl, { q: request.term })
+                    .done(function(data) {
+                        var taken = selectedIds();
+                        var out = (data.results || []).filter(function(item) {
+                            return taken.indexOf(String(item.id)) === -1;
+                        });
+                        response(
+                            $.map(out, function(item) {
+                                return { label: item.label, value: item.id };
+                            })
+                        );
+                    })
+                    .fail(function() {
+                        response([]);
+                    });
+            },
+            select: function(event, ui) {
+                var idStr = String(ui.item.value);
+                if (selectedIds().indexOf(idStr) !== -1) {
+                    $input.val("");
+                    return false;
+                }
+                $("<option></option>")
+                    .attr("value", idStr)
+                    .prop("selected", true)
+                    .text(ui.item.label)
+                    .appendTo($select);
+                $input.val("");
+                renderChips();
+                $input.removeClass("is-invalid");
+                return false;
+            },
+            focus: function() {
+                return false;
+            }
+        });
+
+        $("#training-instance-form").on("submit", function() {
+            if (selectedIds().length === 0) {
+                $input.addClass("is-invalid");
+                $input[0].scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        });
+
+        renderChips();
+    });
+})();
+</script>
+{% endblock inline_javascript %}

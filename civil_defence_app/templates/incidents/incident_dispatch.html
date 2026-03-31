@@ -1,6 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Log Incident &amp; Dispatch — Civil Defence{% endblock title %}
 
+{# jQuery UI (cdnjs) matches base.html: same host, integrity, crossorigin, referrerpolicy, defer on scripts. #}
+{% block css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css" integrity="sha512-ELV+xyi8IhEApPS/pSj66+Jiw+sOT1Mqkzlh8ExXihe4zfqbWkxPRi8wptXIO9g73FSlhmquFlUOuMSoXz5IRw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<style>
+  /* Autocomplete panel above Bootstrap cards/nav; cap height so long lists scroll inside the menu. */
+  .ui-autocomplete { z-index: 2000; max-height: 280px; overflow-y: auto; overflow-x: hidden; }
+</style>
+{% endblock css %}
+
+{% block javascript %}
+{{ block.super }}
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js" integrity="sha512-57oZ/vW8ANMjR/KQ6Be9v/+/h6bq9/l3f0Oc7vn6qMqyhvPd1cvKBRWWpzu0QoneImqr2SkmO4MSqU+RpHom3Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+{% endblock javascript %}
+
 {% block content %}
 <div class="container-fluid py-4">
 
@@ -104,10 +119,11 @@
           </div>
           <div class="card-body d-flex flex-column gap-3">
 
-            <div>
-              <label for="{{ form.volunteers.id_for_label }}" class="form-label fw-semibold">
+            <div class="dispatch-volunteers-field">
+              <label for="{{ form.volunteers.id_for_label }}" class="form-label fw-semibold" id="volunteers-field-label">
                 {{ form.volunteers.label }} <span class="text-danger">*</span>
               </label>
+              {# The real &lt;select multiple&gt; stays in the POST body; JS hides it and syncs selections. #}
               {{ form.volunteers }}
               <div class="form-text text-muted small">{{ form.volunteers.help_text }}</div>
               {% if form.volunteers.errors %}
@@ -182,16 +198,138 @@
 
 {% block inline_javascript %}
 <script>
-    (function() {
-        var form = document.querySelector("form");
-        if (!form) return;
-        form.addEventListener("submit", function() {
-            var volunteers = document.getElementById("id_volunteers");
-            if (volunteers && volunteers.selectedOptions.length === 0) {
-                volunteers.classList.add("is-invalid");
-                volunteers.scrollIntoView({ behavior: "smooth", block: "center" });
+(function() {
+    /*
+     * Incident dispatch: volunteer picker enhancement
+     * -----------------------------------------------
+     * base.html loads jQuery and (on this page only) jQuery UI via deferred &lt;script&gt; tags in &lt;head&gt;.
+     * Inline scripts at the foot of the body run *before* those deferred scripts finish, so we must wait
+     * until window "load" before calling jQuery/jQuery UI. That mirrors how defer works in base.html.
+     *
+     * Behaviour:
+     *   1. Read every &lt;option&gt; from #id_volunteers into an in-memory list { label, value }.
+     *   2. Attach jQuery UI Autocomplete to a text input; typing filters labels (case-insensitive).
+     *   3. Choosing a row adds that option’s value to the hidden multi-select and shows a removable tag.
+     *   4. Removing a tag deselects the matching &lt;option&gt; so the next POST matches Django’s expectations.
+     */
+    window.addEventListener("load", function() {
+        if (typeof jQuery === "undefined" || !jQuery.ui || !jQuery.ui.autocomplete) {
+            return;
+        }
+        var $ = jQuery;
+        var $select = $("#id_volunteers");
+        if (!$select.length) {
+            return;
+        }
+
+        var allVolunteers = [];
+        $select.find("option").each(function() {
+            var v = $(this).val();
+            if (v === "" || v === undefined) {
+                return;
+            }
+            allVolunteers.push({ label: $(this).text(), value: String(v) });
+        });
+        if (allVolunteers.length === 0) {
+            return;
+        }
+
+        $select.addClass("d-none");
+
+        var $wrap = $('<div class="mb-2" id="id_volunteers_autocomplete_wrap"></div>');
+        var $input = $(
+            '<input type="text" class="form-control" id="id_volunteers_autocomplete" ' +
+            'placeholder="Type to search volunteers by name…" autocomplete="off" ' +
+            'aria-labelledby="volunteers-field-label">'
+        );
+        var $chips = $('<div class="d-flex flex-wrap gap-2 mb-1" id="id_volunteers_chips" role="list"></div>');
+        $select.before($wrap);
+        $wrap.append($input);
+        $wrap.append($chips);
+
+        function selectedIds() {
+            var raw = $select.val();
+            if (!raw) {
+                return [];
+            }
+            return Array.isArray(raw) ? raw.map(String) : [String(raw)];
+        }
+
+        function renderChips() {
+            $chips.empty();
+            var ids = selectedIds();
+            for (var i = 0; i < ids.length; i++) {
+                var id = ids[i];
+                var opt = $select.find("option").filter(function() {
+                    return String($(this).val()) === String(id);
+                });
+                var label = opt.length ? opt.text() : id;
+                var $chip = $('<span class="badge bg-secondary d-inline-flex align-items-center gap-1 py-2 px-2" role="listitem"></span>');
+                $chip.append($("<span></span>").text(label));
+                var $btn = $('<button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove volunteer"></button>');
+                (function(pk) {
+                    $btn.on("click", function() {
+                        var next = selectedIds().filter(function(x) { return String(x) !== String(pk); });
+                        $select.val(next.length ? next : null);
+                        renderChips();
+                        $input.removeClass("is-invalid");
+                    });
+                })(id);
+                $chip.append($btn);
+                $chips.append($chip);
+            }
+        }
+
+        $input.autocomplete({
+            minLength: 1,
+            source: function(request, response) {
+                var term = $.ui.autocomplete.escapeRegex(request.term);
+                var re = new RegExp(term, "i");
+                var taken = selectedIds();
+                var out = [];
+                for (var j = 0; j < allVolunteers.length; j++) {
+                    var item = allVolunteers[j];
+                    if (taken.indexOf(item.value) !== -1) {
+                        continue;
+                    }
+                    if (re.test(item.label)) {
+                        out.push(item);
+                    }
+                }
+                response(out.slice(0, 80));
+            },
+            select: function(event, ui) {
+                var ids = selectedIds().slice();
+                if (ids.indexOf(ui.item.value) === -1) {
+                    ids.push(ui.item.value);
+                }
+                $select.val(ids);
+                $input.val("");
+                renderChips();
+                $input.removeClass("is-invalid");
+                return false;
+            },
+            focus: function() {
+                return false;
             }
         });
-    })();
+
+        renderChips();
+
+        var form = document.querySelector("form");
+        if (form) {
+            form.addEventListener("submit", function() {
+                if (selectedIds().length === 0) {
+                    $input.addClass("is-invalid");
+                    $select.addClass("is-invalid");
+                    var el = document.getElementById("id_volunteers_autocomplete_wrap") || document.getElementById("id_volunteers");
+                    if (el && el.scrollIntoView) {
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                }
+            });
+        }
+    });
+})();
 </script>
 {% endblock inline_javascript %}

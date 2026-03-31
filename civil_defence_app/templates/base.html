@@ -58,6 +58,9 @@
                             <li><a class="dropdown-item fw-semibold" href="{% url 'training:training-coverage-summary' %}">Coverage by Unit</a></li>
                             <li><a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a></li>
                             <li><a class="dropdown-item" href="{% url 'training:instance-list' %}">Batches / Instances</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'training:training-programme-create' %}">+ New programme</a></li>
+                            <li><a class="dropdown-item" href="{% url 'training:training-instance-create' %}">+ New batch</a></li>
                         </ul>
                     </li>
 
@@ -133,6 +136,10 @@
                             {% endif %}
                             <li><a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a></li>
                             <li><a class="dropdown-item" href="{% url 'training:instance-list' %}">Batches / Instances</a></li>
+                            {% if request.user.unit %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'training:training-instance-create' %}">+ New batch</a></li>
+                            {% endif %}
                         </ul>
                     </li>
 

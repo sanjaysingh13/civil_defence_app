@@ -89,8 +89,9 @@ class IncidentDispatchForm(forms.ModelForm):
         required=True,
         label=_("Volunteers to Dispatch"),
         help_text=_(
-            "Select one or more active volunteers from your unit. "
-            "Hold Ctrl (Windows) or Cmd (Mac) to select multiple."
+            "Type in the search box to find volunteers by name, then pick from "
+            "the list to add them. Remove a person with the × on their tag. "
+            "At least one volunteer is required."
         ),
         widget=forms.SelectMultiple(attrs={
             "class": "form-select",

@@ -5,10 +5,22 @@
 {% block content %}
 <div class="container-fluid py-4">
 
-  <div class="d-flex align-items-center justify-content-between mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
       <h2 class="mb-0 fw-bold">Training Batches</h2>
-      <small class="text-muted">{{ page_obj.paginator.count }} total batch{{ page_obj.paginator.count|pluralize:"es" }}</small>
+      <small class="text-muted">
+        {{ page_obj.paginator.count }} batch{{ page_obj.paginator.count|pluralize:"es" }}
+        {% if scope_unit_only %}
+          for <strong>{{ request.user.unit.name }}</strong> only.
+        {% else %}
+          (all units).
+        {% endif %}
+      </small>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      {% if request.user.is_superuser or request.user.is_admin_role or request.user.is_unit_in_charge and request.user.unit %}
+        <a href="{% url 'training:training-instance-create' %}" class="btn btn-sm btn-primary">+ New batch</a>
+      {% endif %}
     </div>
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-0">
@@ -33,6 +45,7 @@
             {% endfor %}
           </select>
         </div>
+        {% if not scope_unit_only %}
         <div class="col-6 col-md-3">
           <label for="unit" class="form-label form-label-sm mb-1 fw-semibold">Unit</label>
           <select id="unit" name="unit" class="form-select form-select-sm">
@@ -44,6 +57,7 @@
             {% endfor %}
           </select>
         </div>
+        {% endif %}
         <div class="col-6 col-md-3 d-flex gap-2 align-items-end">
           <button type="submit" class="btn btn-sm btn-primary">Filter</button>
           <a href="{% url 'training:instance-list' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
@@ -72,8 +86,10 @@
             {% for inst in instances %}
             <tr>
               <td class="text-center text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
-              <td class="fw-semibold">{{ inst.training.name }}</td>
-              <td>{{ inst.unit.name }}</td>
+              <td class="fw-semibold">
+                <a href="{% url 'training:instance-detail' inst.pk %}">{{ inst.training.name }}</a>
+              </td>
+              <td>{% if inst.unit %}{{ inst.unit.name }}{% else %}—{% endif %}</td>
               <td class="text-center">
                 <span class="badge bg-info text-dark">{{ inst.training.get_training_type_display }}</span>
               </td>
@@ -85,7 +101,7 @@
                 {% if inst.end_date %}{{ inst.end_date|date:"d M Y" }}{% else %}—{% endif %}
               </td>
               <td class="text-center">
-                <span class="badge bg-primary rounded-pill">{{ inst.attendances.count }}</span>
+                <span class="badge bg-primary rounded-pill">{{ inst.attendance_n }}</span>
               </td>
             </tr>
             {% empty %}
