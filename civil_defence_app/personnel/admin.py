@@ -18,14 +18,16 @@ Register a model with admin.site.register(Model, AdminClass) or the
 
 from django.contrib import admin
 
+from .models import OfficeDutyMonthSubmission
 from .models import OfficeDutyPeriod
 from .models import Unit
 from .models import Volunteer
-
+from .models import VolunteerOfficeDutyMonth
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UNIT ADMIN
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @admin.register(Unit)
 class UnitAdmin(admin.ModelAdmin):
@@ -44,16 +46,18 @@ class UnitAdmin(admin.ModelAdmin):
     # Read-only timestamps
     readonly_fields = ("created_at", "updated_at")
 
+    @admin.display(
+        description="Active Volunteers",
+    )
     def volunteer_count(self, obj: Unit) -> int:
         """Custom column: count of active volunteers in this unit."""
         return obj.volunteers.filter(is_active=True).count()
-
-    volunteer_count.short_description = "Active Volunteers"  # type: ignore[attr-defined]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # VOLUNTEER ADMIN
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
@@ -72,7 +76,14 @@ class VolunteerAdmin(admin.ModelAdmin):
         "is_active",
     )
 
-    list_filter = ("unit", "gender", "category", "blood_group", "is_active", "swasthya_sathi")
+    list_filter = (
+        "unit",
+        "gender",
+        "category",
+        "blood_group",
+        "is_active",
+        "swasthya_sathi",
+    )
 
     search_fields = ("name", "aadhar_no", "hrms_id", "mobile", "email", "serial_no")
 
@@ -85,40 +96,76 @@ class VolunteerAdmin(admin.ModelAdmin):
     # Organise the detail form into logical sections using fieldsets.
     # Each tuple is (section_title, {fields: [...]}).
     fieldsets = (
-        ("Organisational", {
-            "fields": ("unit", "serial_no", "block", "is_active"),
-        }),
-        ("Personal Information", {
-            "fields": (
-                "name", "gender", "category", "blood_group", "dob", "date_60",
-            ),
-        }),
-        ("Contact", {
-            "fields": ("mobile", "email", "guardian_address"),
-        }),
-        ("Government IDs & Schemes", {
-            "fields": ("aadhar_no", "hrms_id", "swasthya_sathi"),
-        }),
-        ("Education & Skills", {
-            "fields": ("qualification", "computer_knowledge"),
-        }),
-        ("Bank Details", {
-            "fields": ("bank_details",),
-            "classes": ("collapse",),   # collapsed by default (less clutter)
-        }),
-        ("CD Registration & Training", {
-            "fields": (
-                "registration_date",
-                "basic_training_details",
-                "special_training_details",
-                "extra_activities",
-                "documents_ref",
-            ),
-        }),
-        ("Timestamps", {
-            "fields": ("created_at", "updated_at"),
-            "classes": ("collapse",),
-        }),
+        (
+            "Organisational",
+            {
+                "fields": (
+                    "unit",
+                    "serial_no",
+                    "block",
+                    "is_active",
+                    "derostered_on",
+                    "deroster_reason",
+                ),
+            },
+        ),
+        (
+            "Personal Information",
+            {
+                "fields": (
+                    "name",
+                    "gender",
+                    "category",
+                    "blood_group",
+                    "dob",
+                    "date_60",
+                ),
+            },
+        ),
+        (
+            "Contact",
+            {
+                "fields": ("mobile", "email", "guardian_address"),
+            },
+        ),
+        (
+            "Government IDs & Schemes",
+            {
+                "fields": ("aadhar_no", "hrms_id", "swasthya_sathi"),
+            },
+        ),
+        (
+            "Education & Skills",
+            {
+                "fields": ("qualification", "computer_knowledge"),
+            },
+        ),
+        (
+            "Bank Details",
+            {
+                "fields": ("bank_details",),
+                "classes": ("collapse",),  # collapsed by default (less clutter)
+            },
+        ),
+        (
+            "CD Registration & Training",
+            {
+                "fields": (
+                    "registration_date",
+                    "basic_training_details",
+                    "special_training_details",
+                    "extra_activities",
+                    "documents_ref",
+                ),
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
 
@@ -137,3 +184,28 @@ class OfficeDutyPeriodAdmin(admin.ModelAdmin):
     autocomplete_fields = ("volunteer", "recorded_by")
     readonly_fields = ("created_at", "updated_at")
     date_hierarchy = "started_at"
+
+
+@admin.register(VolunteerOfficeDutyMonth)
+class VolunteerOfficeDutyMonthAdmin(admin.ModelAdmin):
+    list_display = (
+        "volunteer",
+        "year",
+        "month",
+        "days_worked",
+        "recorded_by",
+        "updated_at",
+    )
+    list_filter = ("year", "month", "volunteer__unit")
+    search_fields = ("volunteer__name", "volunteer__serial_no")
+    autocomplete_fields = ("volunteer", "recorded_by")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(OfficeDutyMonthSubmission)
+class OfficeDutyMonthSubmissionAdmin(admin.ModelAdmin):
+    list_display = ("unit", "year", "month", "submitted_by", "updated_at")
+    list_filter = ("year", "month")
+    search_fields = ("unit__name",)
+    autocomplete_fields = ("unit", "submitted_by")
+    readonly_fields = ("created_at", "updated_at")

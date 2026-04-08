@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}
+  Office duty (monthly CSV) — Civil Defence
+{% endblock title %}
+{% block bodyclass %}
+  bg-light
+{% endblock bodyclass %}
+{% block body %}
+  <div class="container py-4">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{% url 'personnel:unit-list' %}">Personnel</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">Office duty (CSV)</li>
+      </ol>
+    </nav>
+    <h1 class="h3 mb-3">Office duty — monthly CSV</h1>
+    <p class="text-muted">
+      Download a blank template listing your unit’s active volunteers, enter <strong>days worked in office</strong>
+      in the last column, then upload the filled file. Data is stored per volunteer per calendar month; re-uploading replaces values for that month.
+    </p>
+    {% if is_personnel_admin %}
+      <p class="small">
+        <a href="{% url 'personnel:office-duty-status' %}">Office duty submission status (all units)</a>
+      </p>
+    {% endif %}
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-header fw-semibold">1. Download blank template</div>
+          <div class="card-body">
+            <form method="get"
+                  action="{% url 'personnel:office-duty-template-download' %}"
+                  class="vstack gap-3">
+              {% for hidden in download_form.hidden_fields %}{{ hidden }}{% endfor %}
+              {% if download_form.unit.field.widget.input_type != 'hidden' %}
+                <div>
+                  <label class="form-label" for="{{ download_form.unit.id_for_label }}">{{ download_form.unit.label }}</label>
+                  {{ download_form.unit }}
+                  {% if download_form.unit.errors %}<div class="text-danger small">{{ download_form.unit.errors }}</div>{% endif %}
+                </div>
+              {% else %}
+                {{ download_form.unit }}
+              {% endif %}
+              <div>
+                <label class="form-label" for="{{ download_form.year.id_for_label }}">{{ download_form.year.label }}</label>
+                {{ download_form.year }}
+              </div>
+              <div>
+                <label class="form-label" for="{{ download_form.month.id_for_label }}">{{ download_form.month.label }}</label>
+                {{ download_form.month }}
+              </div>
+              <button type="submit" class="btn btn-primary">Download CSV</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-header fw-semibold">2. Upload filled CSV</div>
+          <div class="card-body">
+            <form method="post"
+                  action="{% url 'personnel:office-duty-upload' %}"
+                  enctype="multipart/form-data"
+                  class="vstack gap-3">
+              {% csrf_token %}
+              {% for hidden in upload_form.hidden_fields %}{{ hidden }}{% endfor %}
+              {% if upload_form.unit.field.widget.input_type != 'hidden' %}
+                <div>
+                  <label class="form-label" for="{{ upload_form.unit.id_for_label }}">{{ upload_form.unit.label }}</label>
+                  {{ upload_form.unit }}
+                </div>
+              {% else %}
+                {{ upload_form.unit }}
+              {% endif %}
+              <div>
+                <label class="form-label" for="{{ upload_form.year.id_for_label }}">{{ upload_form.year.label }}</label>
+                {{ upload_form.year }}
+              </div>
+              <div>
+                <label class="form-label" for="{{ upload_form.month.id_for_label }}">{{ upload_form.month.label }}</label>
+                {{ upload_form.month }}
+              </div>
+              <div>
+                <label class="form-label" for="{{ upload_form.csv_file.id_for_label }}">{{ upload_form.csv_file.label }}</label>
+                {{ upload_form.csv_file }}
+              </div>
+              <button type="submit" class="btn btn-success">Upload and save</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card mt-4 border-info">
+      <div class="card-body small">
+        <strong>CSV format (UTF-8):</strong>
+        <code>serial_no</code>, <code>name</code>, <code>volunteer_id</code>, <code>days_worked</code>.
+        Do not change the first three columns. Leave <code>days_worked</code> empty or <code>0</code> for no office days.
+      </div>
+    </div>
+  </div>
+{% endblock body %}

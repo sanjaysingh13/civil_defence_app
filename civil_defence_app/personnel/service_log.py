@@ -2,9 +2,9 @@
 Service log helpers for volunteers.
 
 *Operational* rows come from IncidentAssignment + Incident: that is the *team*
-response (several volunteers on one incident).  *Office* rows come from
-OfficeDutyPeriod: *individual* office time per volunteer, not a shared unit-wide
-shift.  This module merges both into one chronological list and computes
+response (several volunteers on one incident).  *Office* rows come from OfficeDutyPeriod (legacy date ranges) and
+VolunteerOfficeDutyMonth (monthly day counts from CSV).  This module merges
+incidents + both office sources and computes
 calendar-day totals per year for wage / summary displays.
 
 Calendar-day counting uses inclusive ranges: one calendar day contributes 1
@@ -14,6 +14,7 @@ overlap with that year's Jan 1–Dec 31.
 
 from __future__ import annotations
 
+import calendar
 from dataclasses import dataclass
 from datetime import date
 from datetime import datetime
@@ -22,7 +23,6 @@ from typing import Any
 from django.utils import timezone
 
 from civil_defence_app.incidents.models import IncidentStatus
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DATA STRUCTURE FOR ONE ROW IN THE SERVICE LOG TABLE
@@ -35,7 +35,12 @@ class ServiceLogRow:
     One deployment segment shown on the volunteer detail page.
 
     OPERATIONAL = incident team deployment (this volunteer’s assignment to that
-    incident).  OFFICE = individual office duty from OfficeDutyPeriod.
+    incident).  OFFICE = individual office duty from OfficeDutyPeriod or monthly
+    CSV aggregates (VolunteerOfficeDutyMonth).
+
+    When office_days_credited and office_credit_year are set, the year summary
+    adds that many office days to office_credit_year only (ignores period overlap).
+
     period_end is None when still open (ongoing incident or open office stretch).
     """
 
@@ -45,6 +50,8 @@ class ServiceLogRow:
     period_end: date | None
     incident_pk: int | None
     sort_key: datetime
+    office_days_credited: int | None = None
+    office_credit_year: int | None = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,9 +98,8 @@ def build_service_log_rows(volunteer) -> list[ServiceLogRow]:
     """
     Collect operational (incident) and office-duty rows for *volunteer*.
 
-    Expects prefetch_related on incident_assignments__incident and
-    office_duty_periods to avoid N+1 queries when callers already optimized
-    the queryset.
+    Expects prefetch_related on incident_assignments__incident,
+    office_duty_periods, and office_duty_months when callers optimize the queryset.
     """
     rows: list[ServiceLogRow] = []
 
@@ -120,7 +126,10 @@ def build_service_log_rows(volunteer) -> list[ServiceLogRow]:
         else:
             period_end = local_date_from_datetime(end_dt) or start_d
 
+        role_part = assignment.get_role_display()
         label = f"{incident.incident_number or '—'} — {incident.title}"
+        if role_part:
+            label = f"{label} ({role_part})"
         sort_key = start_dt if start_dt else timezone.now()
 
         rows.append(
@@ -150,6 +159,26 @@ def build_service_log_rows(volunteer) -> list[ServiceLogRow]:
             ),
         )
 
+    for month_row in volunteer.office_duty_months.all():
+        y, m = int(month_row.year), int(month_row.month)
+        _w, last_day = calendar.monthrange(y, m)
+        month_start = date(y, m, 1)
+        month_end = date(y, m, last_day)
+        label = f"Office duty — {date(y, m, 1).strftime('%b %Y')} ({month_row.days_worked} days)"
+        sort_key = timezone.make_aware(datetime(y, m, last_day, 23, 59, 59))
+        rows.append(
+            ServiceLogRow(
+                deployment_kind="OFFICE",
+                label=label,
+                period_start=month_start,
+                period_end=month_end,
+                incident_pk=None,
+                sort_key=sort_key,
+                office_days_credited=month_row.days_worked,
+                office_credit_year=y,
+            ),
+        )
+
     rows.sort(key=lambda r: r.sort_key, reverse=True)
     return rows
 
@@ -165,31 +194,55 @@ def effective_end_date_for_row(row: ServiceLogRow) -> date:
     return timezone.localdate()
 
 
+def _row_year_span(row: ServiceLogRow) -> tuple[int, int]:
+    """Minimum and maximum calendar year this row touches for summary bounds."""
+    if row.office_days_credited is not None and row.office_credit_year is not None:
+        y = row.office_credit_year
+        return y, y
+    lo = row.period_start.year
+    hi = effective_end_date_for_row(row).year
+    return lo, hi
+
+
 def build_year_summary(rows: list[ServiceLogRow]) -> list[dict[str, Any]]:
     """
     Produce one summary dict per calendar year that overlaps any deployment.
 
     operational_days and office_days sum inclusive calendar days allocated to
-    that year (split when a deployment crosses 1 January).
+    that year (split when a deployment crosses 1 January).  Office rows from
+    monthly CSV use office_days_credited once for office_credit_year instead of
+    range overlap.
     """
     if not rows:
         return []
 
-    min_year = min(r.period_start.year for r in rows)
-    max_year = max(effective_end_date_for_row(r).year for r in rows)
+    min_year = min(_row_year_span(r)[0] for r in rows)
+    max_year = max(_row_year_span(r)[1] for r in rows)
 
     result: list[dict[str, Any]] = []
     for year in range(min_year, max_year + 1):
         operational_days = 0
         office_days = 0
         for row in rows:
+            if row.deployment_kind == "OPERATIONAL":
+                end_d = effective_end_date_for_row(row)
+                overlap = days_overlap_calendar_year(row.period_start, end_d, year)
+                if overlap:
+                    operational_days += overlap
+                continue
+
+            # OFFICE
+            if (
+                row.office_days_credited is not None
+                and row.office_credit_year is not None
+            ):
+                if row.office_credit_year == year:
+                    office_days += row.office_days_credited
+                continue
+
             end_d = effective_end_date_for_row(row)
             overlap = days_overlap_calendar_year(row.period_start, end_d, year)
-            if overlap == 0:
-                continue
-            if row.deployment_kind == "OPERATIONAL":
-                operational_days += overlap
-            else:
+            if overlap:
                 office_days += overlap
         result.append(
             {

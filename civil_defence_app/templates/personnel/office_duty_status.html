@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}
+  Office duty submission status — Civil Defence
+{% endblock title %}
+{% block bodyclass %}
+  bg-light
+{% endblock bodyclass %}
+{% block body %}
+  <div class="container py-4">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{% url 'personnel:office-duty-monthly' %}">Office duty (CSV)</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">Submission status</li>
+      </ol>
+    </nav>
+    <h1 class="h3 mb-3">Office duty — submission status</h1>
+    <p class="text-muted small">
+      State admin view: which units have uploaded monthly office-duty data for the selected month.
+    </p>
+    <form method="get" class="row row-cols-lg-auto g-2 align-items-end mb-4">
+      {% for hidden in filter_form.hidden_fields %}{{ hidden }}{% endfor %}
+      <div class="col-12 col-md-3">
+        <label class="form-label small mb-0"
+               for="{{ filter_form.year.id_for_label }}">Year</label>
+        {{ filter_form.year }}
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label small mb-0"
+               for="{{ filter_form.month.id_for_label }}">Month</label>
+        {{ filter_form.month }}
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Show</button>
+      </div>
+    </form>
+    <p class="small text-secondary">
+      Showing <strong>{{ status_year }}</strong> — <strong>{{ status_month }}</strong>
+    </p>
+    <div class="table-responsive card shadow-sm">
+      <table class="table table-sm table-striped mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>Unit</th>
+            <th>Status</th>
+            <th>Last submitted by</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in unit_rows %}
+            <tr>
+              <td>{{ row.unit.name }}</td>
+              <td>
+                {% if row.submitted %}
+                  <span class="badge bg-success">Submitted</span>
+                {% else %}
+                  <span class="badge bg-secondary">Not submitted</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if row.submission.submitted_by %}
+                  {{ row.submission.submitted_by.get_full_name|default:row.submission.submitted_by.username }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                {% if row.submission %}
+                  {{ row.submission.updated_at|date:"d M Y H:i" }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="text-muted">No units.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card mt-4 shadow-sm">
+      <div class="card-header fw-semibold">Email blank template to UIC</div>
+      <div class="card-body">
+        <p class="small text-muted">
+          If the UIC has an email on their user account, the same blank CSV is sent as an attachment.
+          If there is no UIC user or no email, nothing is sent — use the download link and contact the UIC manually.
+        </p>
+        <form method="post"
+              action="{% url 'personnel:office-duty-email-uic' %}"
+              class="row g-2 align-items-end">
+          {% csrf_token %}
+          {% for hidden in email_form.hidden_fields %}{{ hidden }}{% endfor %}
+          <div class="col-12 col-md-4">
+            <label class="form-label small" for="{{ email_form.unit.id_for_label }}">Unit</label>
+            {{ email_form.unit }}
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small" for="{{ email_form.year.id_for_label }}">Year</label>
+            {{ email_form.year }}
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small" for="{{ email_form.month.id_for_label }}">Month</label>
+            {{ email_form.month }}
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-warning btn-sm">Send email to UIC(s)</button>
+            <a class="btn btn-outline-secondary btn-sm ms-1"
+               href="{% url 'personnel:office-duty-monthly' %}">Open download page</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock body %}

@@ -30,10 +30,24 @@ side-by-side on wider screens.
         <li class="breadcrumb-item active">{{ object.name }}</li>
       </ol>
     </nav>
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h2 class="fw-bold mb-0">{{ object.name }}</h2>
-      <a href="javascript:history.back()"
-         class="btn btn-outline-secondary btn-sm">&larr; Back</a>
+      <div class="d-flex align-items-center gap-2">
+        {% if can_deroster_volunteer and object.is_active %}
+          {# Bootstrap modal: opened via data-bs-toggle so no custom JS is required. #}
+          <button type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  data-bs-toggle="modal"
+                  data-bs-target="#derosterModal">De-roster from service</button>
+        {% elif can_deroster_volunteer and not object.is_active %}
+          <button type="button"
+                  class="btn btn-outline-success btn-sm"
+                  data-bs-toggle="modal"
+                  data-bs-target="#reinstateModal">Reinstate to active roster</button>
+        {% endif %}
+        <a href="javascript:history.back()"
+           class="btn btn-outline-secondary btn-sm">&larr; Back</a>
+      </div>
     </div>
     <div class="row g-3">
       <div class="col-12 col-lg-6">
@@ -65,10 +79,24 @@ side-by-side on wider screens.
               <dd class="col-sm-7">
                 {% if object.is_active %}
                   <span class="badge bg-success">Active</span>
+                {% elif object.derostered_on %}
+                  <span class="badge bg-warning text-dark">De-rostered</span>
                 {% else %}
                   <span class="badge bg-secondary">Inactive</span>
                 {% endif %}
               </dd>
+              {% if object.derostered_on %}
+                <dt class="col-sm-5">De-rostered on</dt>
+                <dd class="col-sm-7">
+                  {{ object.derostered_on|date:"d M Y" }}
+                </dd>
+              {% endif %}
+              {% if object.deroster_reason %}
+                <dt class="col-sm-5">De-roster reason</dt>
+                <dd class="col-sm-7">
+                  <span class="small">{{ object.deroster_reason|linebreaksbr }}</span>
+                </dd>
+              {% endif %}
             </dl>
           </div>
         </div>
@@ -233,7 +261,7 @@ side-by-side on wider screens.
     - Office duty = individual (per volunteer), not a unit team operation.
     - Year table: calendar days split by year (operational vs office).
     - Log table: incident rows + this volunteer’s office-duty periods with dates.
-    - Office duty actions: UIC/Admin only; Start uses HTML5 date input; End closes this volunteer’s open period.
+    - Office duty: monthly CSV upload (Personnel → Office duty); legacy period rows may still appear in the log.
       {% endcomment %}
       <div class="col-12">
         <div class="card shadow-sm">
@@ -311,44 +339,12 @@ side-by-side on wider screens.
             {% else %}
               <p class="text-muted small mb-0">No deployments in the log.</p>
             {% endif %}
-            {% if can_log_office_duty %}
+            {% if can_deroster_volunteer %}
               <hr class="my-4" />
-              <h6 class="text-secondary small text-uppercase mb-3">Office duty (this unit)</h6>
-              <div class="row g-3 align-items-end">
-                <div class="col-12 col-md-6 col-lg-5">
-                  <form method="post"
-                        action="{% url 'personnel:volunteer-office-duty-start' object.pk %}"
-                        class="d-flex flex-wrap gap-2 align-items-end">
-                    {% csrf_token %}
-                    <div class="flex-grow-1" style="min-width: 12rem;">
-                      <label class="form-label small mb-1" for="id_office_duty_start_date">Start office duty (date)</label>
-                      {{ office_duty_start_form.start_date }}
-                    </div>
-                    <button type="submit"
-                            class="btn btn-primary btn-sm"
-                            {% if open_office_duty %}disabled title="End the current office duty before starting a new one"{% endif %}>
-                      Start office duty
-                    </button>
-                  </form>
-                  {% if open_office_duty %}
-                    <p class="small text-muted mt-2 mb-0">Open period began {{ open_office_duty.started_at|date:"d M Y, H:i" }}.</p>
-                  {% endif %}
-                </div>
-                <div class="col-12 col-md-6 col-lg-4">
-                  <form method="post"
-                        action="{% url 'personnel:volunteer-office-duty-end' object.pk %}">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="btn btn-outline-secondary btn-sm"
-                            {% if not open_office_duty %}disabled title="No open office duty to end"{% endif %}>
-                      End office duty
-                    </button>
-                  </form>
-                </div>
-              </div>
-            {% else %}
-              <p class="text-muted small mb-0 mt-3">
-                Office duty can be logged by administrators or this volunteer&apos;s Unit In-Charge.
+              <p class="small text-muted mb-0">
+                New office duty is recorded per calendar month via
+                <a href="{% url 'personnel:office-duty-monthly' %}">Office duty (CSV)</a>
+                for this volunteer&apos;s unit.
               </p>
             {% endif %}
           </div>
@@ -360,5 +356,93 @@ side-by-side on wider screens.
       &nbsp;&middot;&nbsp;
       Last updated {{ object.updated_at|date:"d M Y, H:i" }}
     </p>
+    {% if can_deroster_volunteer and not object.is_active %}
+      {# Reinstate clears de-roster date/reason on the row; confirm before POST. #}
+      <div class="modal fade"
+           id="reinstateModal"
+           tabindex="-1"
+           aria-labelledby="reinstateModalLabel"
+           aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form method="post"
+                  action="{% url 'personnel:volunteer-reinstate' object.pk %}">
+              {% csrf_token %}
+              <div class="modal-header">
+                <h5 class="modal-title" id="reinstateModalLabel">Reinstate {{ object.name }}</h5>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p class="small text-muted mb-0">
+                  This returns the volunteer to the <strong>active</strong> roster (dispatch, training, and volunteer list).
+                  {% if object.derostered_on or object.deroster_reason %}
+                    The stored de-roster date and reason on this record will be cleared.
+                  {% endif %}
+                </p>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success">Confirm reinstate</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    {% if can_deroster_volunteer and object.is_active %}
+      {# POST to personnel:volunteer-deroster — CSRF token required for session-authenticated forms. #}
+      <div class="modal fade"
+           id="derosterModal"
+           tabindex="-1"
+           aria-labelledby="derosterModalLabel"
+           aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form method="post"
+                  action="{% url 'personnel:volunteer-deroster' object.pk %}">
+              {% csrf_token %}
+              <div class="modal-header">
+                <h5 class="modal-title" id="derosterModalLabel">De-roster {{ object.name }}</h5>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p class="small text-muted">
+                  This removes the volunteer from the <strong>active</strong> roster (dispatch, training enrolment, and volunteer list).
+                  The record is kept for history.
+                </p>
+                <div class="mb-3">
+                  <label class="form-label" for="id_derostered_on">De-roster date</label>
+                  <input type="date"
+                         name="derostered_on"
+                         id="id_derostered_on"
+                         class="form-control"
+                         required />
+                </div>
+                <div class="mb-0">
+                  <label class="form-label" for="id_deroster_reason">Reason</label>
+                  <textarea name="deroster_reason"
+                            id="id_deroster_reason"
+                            class="form-control"
+                            rows="3"
+                            required
+                            minlength="3"
+                            placeholder="e.g. Attained 60 years, transferred, own request"></textarea>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-danger">Confirm de-roster</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endif %}
   </div>
 {% endblock content %}

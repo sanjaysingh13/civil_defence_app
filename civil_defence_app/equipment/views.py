@@ -2,6 +2,7 @@
 Equipment app views.
 
 EquipmentListView                 — paginated, filterable table of all equipment items.
+EquipmentCreateView               — Admin-only: add item with auto asset tag.
 EquipmentDetailView               — full detail card for one item with maintenance history.
 EquipmentMaintenanceLogCreateView — UIC submits a new inspection result for one item.
 EquipmentInventorySummaryView     — all-units summary: total/functional/non-functional/overdue per unit.
@@ -15,7 +16,9 @@ import datetime
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.db.models import Count, Q
+from django.db import transaction
+from django.db.models import Count
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -24,6 +27,8 @@ from django.views.generic import DetailView
 from django.views.generic import ListView
 from django.views.generic import TemplateView
 
+from .asset_tag import build_next_unique_id
+from .forms import EquipmentCreateForm
 from .forms import EquipmentMaintenanceLogForm
 from .models import Equipment
 from .models import EquipmentCategory
@@ -31,32 +36,31 @@ from .models import EquipmentMaintenanceLog
 from .models import EquipmentStatus
 from .models import add_months
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # EQUIPMENT LIST
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class EquipmentListView(LoginRequiredMixin, ListView):
     """Table of all equipment across all units with filters."""
-    model               = Equipment
-    template_name       = "equipment/equipment_list.html"
+
+    model = Equipment
+    template_name = "equipment/equipment_list.html"
     context_object_name = "equipment_list"
-    paginate_by         = 50
+    paginate_by = 50
 
     def get_queryset(self):
-        qs = (
-            Equipment.objects
-            .select_related("unit", "equipment_type")
-            .order_by("unit__name", "name")
+        qs = Equipment.objects.select_related("unit", "equipment_type").order_by(
+            "unit__name", "name"
         )
 
-        self.q             = self.request.GET.get("q", "").strip()
-        self.category      = self.request.GET.get("category", "").strip()
-        self.status        = self.request.GET.get("status", "").strip()
-        self.unit_id       = self.request.GET.get("unit", "").strip()
+        self.q = self.request.GET.get("q", "").strip()
+        self.category = self.request.GET.get("category", "").strip()
+        self.status = self.request.GET.get("status", "").strip()
+        self.unit_id = self.request.GET.get("unit", "").strip()
         # ?functional=1 → only functional items; ?functional=0 → only non-functional;
         # empty string (default) → no filter applied (show all).
-        self.functional    = self.request.GET.get("functional", "").strip()
+        self.functional = self.request.GET.get("functional", "").strip()
 
         if self.q:
             qs = qs.filter(name__icontains=self.q)
@@ -75,31 +79,81 @@ class EquipmentListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["q"]                  = self.q
-        context["selected_category"]  = self.category
-        context["selected_status"]    = self.status
-        context["selected_unit"]      = self.unit_id
+        context["q"] = self.q
+        context["selected_category"] = self.category
+        context["selected_status"] = self.status
+        context["selected_unit"] = self.unit_id
         context["selected_functional"] = self.functional
-        context["category_choices"]   = EquipmentCategory.choices
-        context["status_choices"]     = EquipmentStatus.choices
+        context["category_choices"] = EquipmentCategory.choices
+        context["status_choices"] = EquipmentStatus.choices
         from civil_defence_app.personnel.models import Unit
+
         context["units"] = Unit.objects.order_by("name")
+        user = self.request.user
+        context["can_add_equipment"] = user.is_superuser or getattr(
+            user,
+            "is_admin_role",
+            False,
+        )
         return context
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EQUIPMENT CREATE (Admin web UI)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class EquipmentCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """
+    POST creates a new ``Equipment`` with ``unique_id`` from ``build_next_unique_id``,
+    ``name``/``category`` copied from the chosen ``EquipmentType``, and
+    ``is_functional=True``. Asset tag is shown on the redirect target (detail page).
+    """
+
+    model = Equipment
+    form_class = EquipmentCreateForm
+    template_name = "equipment/equipment_create.html"
+
+    def test_func(self) -> bool:
+        user = self.request.user
+        return user.is_superuser or getattr(user, "is_admin_role", False)
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            equipment = form.save(commit=False)
+            et = equipment.equipment_type
+            unit = equipment.unit
+            equipment.name = et.name.strip()
+            equipment.category = et.category
+            equipment.unique_id = build_next_unique_id(unit=unit, equipment_type=et)
+            equipment.is_functional = True
+            equipment.status = EquipmentStatus.FUNCTIONAL
+            equipment.save()
+        messages.success(
+            self.request,
+            f"Equipment created. Asset tag: {equipment.unique_id}",
+        )
+        return redirect(
+            reverse("equipment:equipment-detail", kwargs={"pk": equipment.pk}),
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # EQUIPMENT DETAIL
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class EquipmentDetailView(LoginRequiredMixin, DetailView):
-    model         = Equipment
+    model = Equipment
     template_name = "equipment/equipment_detail.html"
 
     def get_queryset(self):
         # prefetch_related pulls all maintenance log rows in a single extra
         # SQL query so the template can iterate them without N+1 queries.
-        return Equipment.objects.select_related("unit", "equipment_type").prefetch_related(
-            "maintenance_logs__checked_by"
+        return Equipment.objects.select_related(
+            "unit", "equipment_type"
+        ).prefetch_related(
+            "maintenance_logs__checked_by",
         )
 
     def get_context_data(self, **kwargs):
@@ -109,8 +163,7 @@ class EquipmentDetailView(LoginRequiredMixin, DetailView):
         user = self.request.user
         is_admin = user.is_superuser or getattr(user, "is_admin_role", False)
         is_owning_uic = (
-            getattr(user, "is_unit_in_charge", False)
-            and user.unit == self.object.unit
+            getattr(user, "is_unit_in_charge", False) and user.unit == self.object.unit
         )
         context["can_log"] = user.is_authenticated and (is_admin or is_owning_uic)
         return context
@@ -120,7 +173,10 @@ class EquipmentDetailView(LoginRequiredMixin, DetailView):
 # MAINTENANCE LOG — CREATE
 # ─────────────────────────────────────────────────────────────────────────────
 
-class EquipmentMaintenanceLogCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+
+class EquipmentMaintenanceLogCreateView(
+    LoginRequiredMixin, UserPassesTestMixin, CreateView
+):
     """
     Unit In-Charge submits a new maintenance inspection result for one
     piece of equipment.
@@ -143,8 +199,8 @@ class EquipmentMaintenanceLogCreateView(LoginRequiredMixin, UserPassesTestMixin,
       6. Redirects back to the equipment detail page with a success flash.
     """
 
-    model         = EquipmentMaintenanceLog
-    form_class    = EquipmentMaintenanceLogForm
+    model = EquipmentMaintenanceLog
+    form_class = EquipmentMaintenanceLogForm
     template_name = "equipment/log_create.html"
 
     def setup(self, request, *args, **kwargs):
@@ -186,18 +242,18 @@ class EquipmentMaintenanceLogCreateView(LoginRequiredMixin, UserPassesTestMixin,
         database yet, giving us a chance to fill in auto-managed fields
         (equipment FK and checked_by) before the final INSERT.
         """
-        log             = form.save(commit=False)
-        log.equipment   = self.equipment
-        log.checked_by  = self.request.user
+        log = form.save(commit=False)
+        log.equipment = self.equipment
+        log.checked_by = self.request.user
         log.status_after_check = (
             EquipmentStatus.FUNCTIONAL if log.is_fit else EquipmentStatus.REPAIR
         )
         log.save()
 
         # ── Propagate fitness result back to the equipment item ───────────────
-        self.equipment.is_functional    = log.is_fit
-        self.equipment.last_check_date  = log.check_date
-        self.equipment.status           = log.status_after_check
+        self.equipment.is_functional = log.is_fit
+        self.equipment.last_check_date = log.check_date
+        self.equipment.status = log.status_after_check
 
         # ── Calculate next_due_date from the equipment type's periodicity ─────
         #
@@ -206,7 +262,9 @@ class EquipmentMaintenanceLogCreateView(LoginRequiredMixin, UserPassesTestMixin,
         # We only compute this if the equipment has a type assigned.
         update_fields = ["is_functional", "last_check_date", "status"]
         if self.equipment.equipment_type:
-            periodicity = self.equipment.equipment_type.scheduled_maintenance_periodicity
+            periodicity = (
+                self.equipment.equipment_type.scheduled_maintenance_periodicity
+            )
             self.equipment.next_due_date = add_months(log.check_date, periodicity)
             update_fields.append("next_due_date")
 
@@ -216,9 +274,11 @@ class EquipmentMaintenanceLogCreateView(LoginRequiredMixin, UserPassesTestMixin,
             self.request,
             f"Maintenance log recorded for {self.equipment.unique_id}. "
             f"Functional status updated to: "
-            f"{'Fit' if log.is_fit else 'Not Fit'}."
+            f"{'Fit' if log.is_fit else 'Not Fit'}.",
         )
-        return redirect(reverse("equipment:equipment-detail", kwargs={"pk": self.equipment.pk}))
+        return redirect(
+            reverse("equipment:equipment-detail", kwargs={"pk": self.equipment.pk})
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -233,6 +293,7 @@ class EquipmentMaintenanceLogCreateView(LoginRequiredMixin, UserPassesTestMixin,
 # for drill-down detail.  This gives the Admin a one-page health snapshot of
 # the entire state's equipment without having to navigate unit by unit.
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class EquipmentInventorySummaryView(LoginRequiredMixin, TemplateView):
     """
@@ -264,6 +325,7 @@ class EquipmentInventorySummaryView(LoginRequiredMixin, TemplateView):
         # their own unit's detail view so they land on useful information.
         if not is_admin and getattr(user, "is_unit_in_charge", False) and user.unit:
             from django.shortcuts import redirect as _redirect
+
             return _redirect("equipment:unit-inventory", unit_pk=user.unit.pk)
 
         return super().get(request, *args, **kwargs)
@@ -283,33 +345,33 @@ class EquipmentInventorySummaryView(LoginRequiredMixin, TemplateView):
 
         from civil_defence_app.personnel.models import Unit
 
-        overdue_condition = (
-            Q(equipment_items__is_functional=True)
-            & (
-                Q(equipment_items__next_due_date__lt=today)
-                | Q(equipment_items__last_check_date__isnull=True)
-            )
+        overdue_condition = Q(equipment_items__is_functional=True) & (
+            Q(equipment_items__next_due_date__lt=today)
+            | Q(equipment_items__last_check_date__isnull=True)
         )
 
         units = (
-            Unit.objects
-            .annotate(
-                total          = Count("equipment_items"),
-                functional     = Count("equipment_items", filter=Q(equipment_items__is_functional=True)),
-                non_functional = Count("equipment_items", filter=Q(equipment_items__is_functional=False)),
-                overdue        = Count("equipment_items", filter=overdue_condition),
+            Unit.objects.annotate(
+                total=Count("equipment_items"),
+                functional=Count(
+                    "equipment_items", filter=Q(equipment_items__is_functional=True)
+                ),
+                non_functional=Count(
+                    "equipment_items", filter=Q(equipment_items__is_functional=False)
+                ),
+                overdue=Count("equipment_items", filter=overdue_condition),
             )
-            .filter(total__gt=0)    # hide units that have no equipment at all
+            .filter(total__gt=0)  # hide units that have no equipment at all
             .order_by("name")
         )
 
-        context["units"]          = units
-        context["today"]          = today
+        context["units"] = units
+        context["today"] = today
         # Grand totals for the footer summary row.
-        context["grand_total"]         = sum(u.total          for u in units)
-        context["grand_functional"]    = sum(u.functional     for u in units)
+        context["grand_total"] = sum(u.total for u in units)
+        context["grand_functional"] = sum(u.functional for u in units)
         context["grand_nonfunctional"] = sum(u.non_functional for u in units)
-        context["grand_overdue"]       = sum(u.overdue        for u in units)
+        context["grand_overdue"] = sum(u.overdue for u in units)
 
         return context
 
@@ -323,6 +385,7 @@ class EquipmentInventorySummaryView(LoginRequiredMixin, TemplateView):
 # for untyped items).  For each type, displays total count, functional count,
 # and non-functional count so the UIC can see stock levels at a glance.
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class EquipmentInventoryByUnitView(LoginRequiredMixin, TemplateView):
     """
@@ -339,6 +402,7 @@ class EquipmentInventoryByUnitView(LoginRequiredMixin, TemplateView):
         # Resolve the Unit object or return 404 if the PK doesn't exist.
         # We import here to avoid circular imports at module level.
         from civil_defence_app.personnel.models import Unit
+
         self.unit = get_object_or_404(Unit, pk=kwargs["unit_pk"])
         return super().get(request, *args, **kwargs)
 
@@ -360,8 +424,7 @@ class EquipmentInventoryByUnitView(LoginRequiredMixin, TemplateView):
         #   total, functional, non_functional
 
         typed_inventory = (
-            Equipment.objects
-            .filter(unit=self.unit, equipment_type__isnull=False)
+            Equipment.objects.filter(unit=self.unit, equipment_type__isnull=False)
             .values(
                 "equipment_type",
                 "equipment_type__name",
@@ -369,9 +432,9 @@ class EquipmentInventoryByUnitView(LoginRequiredMixin, TemplateView):
                 "equipment_type__scheduled_maintenance_periodicity",
             )
             .annotate(
-                total         = Count("id"),
-                functional    = Count("id", filter=Q(is_functional=True)),
-                non_functional = Count("id", filter=Q(is_functional=False)),
+                total=Count("id"),
+                functional=Count("id", filter=Q(is_functional=True)),
+                non_functional=Count("id", filter=Q(is_functional=False)),
             )
             .order_by("equipment_type__name")
         )
@@ -381,27 +444,31 @@ class EquipmentInventoryByUnitView(LoginRequiredMixin, TemplateView):
         # Handles legacy equipment that hasn't been assigned a type yet.
 
         untyped_inventory = (
-            Equipment.objects
-            .filter(unit=self.unit, equipment_type__isnull=True)
+            Equipment.objects.filter(unit=self.unit, equipment_type__isnull=True)
             .values("name", "category")
             .annotate(
-                total          = Count("id"),
-                functional     = Count("id", filter=Q(is_functional=True)),
-                non_functional = Count("id", filter=Q(is_functional=False)),
+                total=Count("id"),
+                functional=Count("id", filter=Q(is_functional=True)),
+                non_functional=Count("id", filter=Q(is_functional=False)),
             )
             .order_by("name")
         )
 
-        context["typed_inventory"]   = list(typed_inventory)
+        context["typed_inventory"] = list(typed_inventory)
         context["untyped_inventory"] = list(untyped_inventory)
 
         # Summary totals for the header card.
-        context["total_items"]       = Equipment.objects.filter(unit=self.unit).count()
-        context["functional_items"]  = Equipment.objects.filter(unit=self.unit, is_functional=True).count()
-        context["nonfunctional_items"] = Equipment.objects.filter(unit=self.unit, is_functional=False).count()
+        context["total_items"] = Equipment.objects.filter(unit=self.unit).count()
+        context["functional_items"] = Equipment.objects.filter(
+            unit=self.unit, is_functional=True
+        ).count()
+        context["nonfunctional_items"] = Equipment.objects.filter(
+            unit=self.unit, is_functional=False
+        ).count()
 
         # For the Admin to see all units for navigation.
         from civil_defence_app.personnel.models import Unit
+
         context["all_units"] = Unit.objects.order_by("name")
 
         return context
@@ -417,6 +484,7 @@ class EquipmentInventoryByUnitView(LoginRequiredMixin, TemplateView):
 # this to monitor whether UICs are actually doing their inspections.
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class EquipmentMaintenanceByUnitView(LoginRequiredMixin, ListView):
     """
     All maintenance log entries for equipment belonging to a specific unit.
@@ -424,13 +492,14 @@ class EquipmentMaintenanceByUnitView(LoginRequiredMixin, ListView):
     URL: /equipment/unit/<unit_pk>/logs/
     """
 
-    model               = EquipmentMaintenanceLog
-    template_name       = "equipment/unit_maintenance_logs.html"
+    model = EquipmentMaintenanceLog
+    template_name = "equipment/unit_maintenance_logs.html"
     context_object_name = "logs"
-    paginate_by         = 50
+    paginate_by = 50
 
     def get(self, request, *args, **kwargs):
         from civil_defence_app.personnel.models import Unit
+
         self.unit = get_object_or_404(Unit, pk=kwargs["unit_pk"])
         return super().get(request, *args, **kwargs)
 
@@ -441,8 +510,7 @@ class EquipmentMaintenanceByUnitView(LoginRequiredMixin, ListView):
         query to avoid N+1 performance issues in the template.
         """
         return (
-            EquipmentMaintenanceLog.objects
-            .filter(equipment__unit=self.unit)
+            EquipmentMaintenanceLog.objects.filter(equipment__unit=self.unit)
             .select_related("equipment", "equipment__unit", "checked_by")
             .order_by("-check_date", "-created_at")
         )
@@ -451,6 +519,7 @@ class EquipmentMaintenanceByUnitView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["unit"] = self.unit
         from civil_defence_app.personnel.models import Unit
+
         context["all_units"] = Unit.objects.order_by("name")
         return context
 
@@ -469,6 +538,7 @@ class EquipmentMaintenanceByUnitView(LoginRequiredMixin, ListView):
 # For Admins: all units; can filter by unit via ?unit=<pk>.
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class EquipmentOverdueView(LoginRequiredMixin, ListView):
     """
     List of functional equipment items with overdue or missing maintenance.
@@ -476,14 +546,14 @@ class EquipmentOverdueView(LoginRequiredMixin, ListView):
     URL: /equipment/overdue/
     """
 
-    model               = Equipment
-    template_name       = "equipment/overdue.html"
+    model = Equipment
+    template_name = "equipment/overdue.html"
     context_object_name = "overdue_items"
-    paginate_by         = 50
+    paginate_by = 50
 
     def get_queryset(self):
         today = datetime.date.today()
-        user  = self.request.user
+        user = self.request.user
 
         # An item is considered overdue if it is functional AND either:
         #   • next_due_date is explicitly set and is in the past (condition A)
@@ -497,8 +567,7 @@ class EquipmentOverdueView(LoginRequiredMixin, ListView):
         overdue_filter = Q(next_due_date__lt=today) | Q(last_check_date__isnull=True)
 
         qs = (
-            Equipment.objects
-            .filter(overdue_filter, is_functional=True)
+            Equipment.objects.filter(overdue_filter, is_functional=True)
             .select_related("unit", "equipment_type")
             .order_by("unit__name", "next_due_date", "name")
         )
@@ -524,13 +593,14 @@ class EquipmentOverdueView(LoginRequiredMixin, ListView):
         context["today"] = datetime.date.today()
         context["total_overdue"] = self.get_queryset().count()
 
-        user     = self.request.user
+        user = self.request.user
         is_admin = user.is_superuser or getattr(user, "is_admin_role", False)
         context["is_admin"] = is_admin
 
         if is_admin:
             from civil_defence_app.personnel.models import Unit
-            context["all_units"]     = Unit.objects.order_by("name")
+
+            context["all_units"] = Unit.objects.order_by("name")
             context["selected_unit"] = getattr(self, "unit_filter", "")
         else:
             context["unit"] = user.unit

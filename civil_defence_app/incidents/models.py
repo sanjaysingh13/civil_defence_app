@@ -22,10 +22,10 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # TIMESTAMP MIXIN
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TimeStampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -39,27 +39,43 @@ class TimeStampedModel(models.Model):
 # CHOICES
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class IncidentType(models.TextChoices):
-    FLOOD    = "FLOOD",    _("Flood")
-    FIRE     = "FIRE",     _("Fire")
+    FLOOD = "FLOOD", _("Flood")
+    FIRE = "FIRE", _("Fire")
     COLLAPSE = "COLLAPSE", _("Building / Structure Collapse")
-    STORM    = "STORM",    _("Storm / Cyclone")
+    STORM = "STORM", _("Storm / Cyclone")
     ACCIDENT = "ACCIDENT", _("Road / Rail Accident")
-    DROUGHT  = "DROUGHT",  _("Drought")
+    DROUGHT = "DROUGHT", _("Drought")
     EPIDEMIC = "EPIDEMIC", _("Epidemic / Disease Outbreak")
-    SEARCH   = "SEARCH",   _("Search & Rescue")
-    OTHER    = "OTHER",    _("Other")
+    SEARCH = "SEARCH", _("Search & Rescue")
+    OTHER = "OTHER", _("Other")
 
 
 class IncidentStatus(models.TextChoices):
     PENDING = "PENDING", _("Pending Diary")
-    OPEN    = "OPEN",    _("Open / Active Response")
-    CLOSED  = "CLOSED",  _("Closed / Completed")
+    OPEN = "OPEN", _("Open / Active Response")
+    CLOSED = "CLOSED", _("Closed / Completed")
+
+
+class IncidentAssignmentRole(models.TextChoices):
+    """
+    Fixed set of deployment roles for a volunteer on a specific incident.
+
+    Add new roles here and run makemigrations if max_length must grow; the
+    dispatch form and admin use these choices for validation and dropdowns.
+    """
+
+    SCUBA_DIVER = "SCUBA_DIVER", _("Scuba Diver")
+    DRIVER = "DRIVER", _("Driver")
+    FIREFIGHTER = "FIREFIGHTER", _("Fire-fighter")
+    CUTTER = "CUTTER", _("Cutter")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # INCIDENT
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class Incident(TimeStampedModel):
     """
@@ -101,20 +117,22 @@ class Incident(TimeStampedModel):
     title = models.CharField(
         _("Incident Title"),
         max_length=255,
-        help_text=_("Short descriptive title, e.g. 'Flash flood in Alipurduar Block I'"),
+        help_text=_(
+            "Short descriptive title, e.g. 'Flash flood in Alipurduar Block I'"
+        ),
     )
 
     incident_type = models.CharField(
         _("Incident Type"),
         max_length=12,
-        choices=IncidentType.choices,
+        choices=IncidentType,
         default=IncidentType.OTHER,
     )
 
     status = models.CharField(
         _("Status"),
         max_length=8,
-        choices=IncidentStatus.choices,
+        choices=IncidentStatus,
         default=IncidentStatus.OPEN,
     )
 
@@ -129,13 +147,17 @@ class Incident(TimeStampedModel):
     )
 
     # Optional GPS co-ordinates for future GIS integration.
-    latitude  = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True
+    )
+    longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True
+    )
 
     # ── Timeline ──────────────────────────────────────────────────────────────
 
     start_time = models.DateTimeField(_("Incident Start Time"), null=True, blank=True)
-    end_time   = models.DateTimeField(_("Incident End Time"),   null=True, blank=True)
+    end_time = models.DateTimeField(_("Incident End Time"), null=True, blank=True)
 
     # ── Report ────────────────────────────────────────────────────────────────
 
@@ -162,9 +184,9 @@ class Incident(TimeStampedModel):
     )
 
     class Meta:
-        verbose_name        = _("Incident")
+        verbose_name = _("Incident")
         verbose_name_plural = _("Incidents")
-        ordering            = ["-start_time", "-created_at"]
+        ordering = ["-start_time", "-created_at"]
 
     def __str__(self) -> str:
         num = self.incident_number or "—"
@@ -193,7 +215,7 @@ class Incident(TimeStampedModel):
         """
         from django.utils import timezone
 
-        year   = (reference_time or timezone.now()).year
+        year = (reference_time or timezone.now()).year
         prefix = f"{unit.slug.upper()}-{year}-"
 
         # Count rows that already have a number with this prefix to determine
@@ -229,6 +251,7 @@ class Incident(TimeStampedModel):
 # Files are stored under MEDIA_ROOT/incident_media/<incident_id>/.
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def incident_media_path(instance: "IncidentMedia", filename: str) -> str:
     """
     Callable used by FileField's upload_to argument.
@@ -254,7 +277,7 @@ class IncidentMedia(TimeStampedModel):
     )
 
     caption = models.CharField(_("Caption"), max_length=255, blank=True, default="")
-    tags    = models.CharField(_("Tags"),    max_length=200, blank=True, default="")
+    tags = models.CharField(_("Tags"), max_length=200, blank=True, default="")
 
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -265,9 +288,9 @@ class IncidentMedia(TimeStampedModel):
     )
 
     class Meta:
-        verbose_name        = _("Incident Media")
+        verbose_name = _("Incident Media")
         verbose_name_plural = _("Incident Media Files")
-        ordering            = ["-created_at"]
+        ordering = ["-created_at"]
 
     def __str__(self) -> str:
         return f"{self.incident.title} — {self.file.name}"
@@ -279,6 +302,7 @@ class IncidentMedia(TimeStampedModel):
 # A chronological diary of actions taken during an incident response.
 # The Unit In-Charge adds entries as events unfold.
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class IncidentLog(TimeStampedModel):
     """Time-stamped diary entry for an ongoing Incident."""
@@ -307,9 +331,9 @@ class IncidentLog(TimeStampedModel):
     )
 
     class Meta:
-        verbose_name        = _("Incident Log Entry")
+        verbose_name = _("Incident Log Entry")
         verbose_name_plural = _("Incident Log Entries")
-        ordering            = ["timestamp"]
+        ordering = ["timestamp"]
 
     def __str__(self) -> str:
         return f"{self.incident.title} @ {self.timestamp}: {self.action_taken[:60]}"
@@ -322,6 +346,7 @@ class IncidentLog(TimeStampedModel):
 # Equipment and Vehicle assignments are recorded as FK references to their
 # respective models in the equipment / fleet apps.
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class IncidentAssignment(TimeStampedModel):
     """
@@ -348,10 +373,10 @@ class IncidentAssignment(TimeStampedModel):
 
     role = models.CharField(
         _("Role in Incident"),
-        max_length=100,
-        blank=True,
-        default="",
-        help_text=_("e.g. Team Leader, First Aider, Driver …"),
+        max_length=32,
+        choices=IncidentAssignmentRole,
+        default=IncidentAssignmentRole.FIREFIGHTER,
+        help_text=_("Role this volunteer fills on this incident."),
     )
 
     assigned_at = models.DateTimeField(_("Assigned At"), auto_now_add=True)
@@ -368,9 +393,9 @@ class IncidentAssignment(TimeStampedModel):
     )
 
     class Meta:
-        verbose_name        = _("Incident Assignment")
+        verbose_name = _("Incident Assignment")
         verbose_name_plural = _("Incident Assignments")
-        ordering            = ["-assigned_at"]
+        ordering = ["-assigned_at"]
 
         constraints = [
             models.UniqueConstraint(

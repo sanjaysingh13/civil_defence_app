@@ -1,335 +1,351 @@
 {% extends "base.html" %}
-{% block title %}Log Incident &amp; Dispatch — Civil Defence{% endblock title %}
 
+{% block title %}
+  Log Incident &amp; Dispatch — Civil Defence
+{% endblock title %}
 {# jQuery UI (cdnjs) matches base.html: same host, integrity, crossorigin, referrerpolicy, defer on scripts. #}
 {% block css %}
-{{ block.super }}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css" integrity="sha512-ELV+xyi8IhEApPS/pSj66+Jiw+sOT1Mqkzlh8ExXihe4zfqbWkxPRi8wptXIO9g73FSlhmquFlUOuMSoXz5IRw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-<style>
-  /* Autocomplete panel above Bootstrap cards/nav; cap height so long lists scroll inside the menu. */
-  .ui-autocomplete { z-index: 2000; max-height: 280px; overflow-y: auto; overflow-x: hidden; }
-</style>
+  {{ block.super }}
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css"
+        integrity="sha512-ELV+xyi8IhEApPS/pSj66+Jiw+sOT1Mqkzlh8ExXihe4zfqbWkxPRi8wptXIO9g73FSlhmquFlUOuMSoXz5IRw=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+  <style>
+    /* Autocomplete panel above Bootstrap cards/nav; cap height so long lists scroll inside the menu. */
+    .ui-autocomplete {
+      z-index: 2000;
+      max-height: 280px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+  </style>
 {% endblock css %}
-
 {% block javascript %}
-{{ block.super }}
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js" integrity="sha512-57oZ/vW8ANMjR/KQ6Be9v/+/h6bq9/l3f0Oc7vn6qMqyhvPd1cvKBRWWpzu0QoneImqr2SkmO4MSqU+RpHom3Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  {{ block.super }}
+  <script defer
+          src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js"
+          integrity="sha512-57oZ/vW8ANMjR/KQ6Be9v/+/h6bq9/l3f0Oc7vn6qMqyhvPd1cvKBRWWpzu0QoneImqr2SkmO4MSqU+RpHom3Q=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
 {% endblock javascript %}
-
 {% block content %}
-<div class="container-fluid py-4">
-
-  <div class="d-flex align-items-start justify-content-between mb-3">
-    <div>
-      <h2 class="mb-0 fw-bold text-danger">&#x1F6A8; Log Incident &amp; Dispatch</h2>
-      <small class="text-muted">Unit: <strong>{{ request.user.unit.name }}</strong></small>
+  <div class="container-fluid py-4">
+    <div class="d-flex align-items-start justify-content-between mb-3">
+      <div>
+        <h2 class="mb-0 fw-bold text-danger">&#x1F6A8; Log Incident &amp; Dispatch</h2>
+        <small class="text-muted">Unit: <strong>{{ request.user.unit.name }}</strong></small>
+      </div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item">
+            <a href="{% url 'home' %}">Home</a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'incidents:incident-list' %}">Incidents</a>
+          </li>
+          <li class="breadcrumb-item active">New Dispatch</li>
+        </ol>
+      </nav>
     </div>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'incidents:incident-list' %}">Incidents</a></li>
-        <li class="breadcrumb-item active">New Dispatch</li>
-      </ol>
-    </nav>
-  </div>
-
-  <form method="post" novalidate>
-    {% csrf_token %}
-
-    <div class="row g-4">
-
-      <div class="col-lg-7">
-        <div class="card shadow-sm h-100">
-          <div class="card-header bg-danger text-white fw-semibold">
-            Incident Details
-          </div>
-          <div class="card-body">
-
-            <div class="mb-3">
-              <label for="{{ form.title.id_for_label }}" class="form-label fw-semibold">
-                {{ form.title.label }} <span class="text-danger">*</span>
-              </label>
-              {{ form.title }}
-              {% if form.title.errors %}
-                <div class="invalid-feedback d-block">
-                  {% for e in form.title.errors %}{{ e }}{% endfor %}
-                </div>
-              {% endif %}
-            </div>
-
-            <div class="mb-3">
-              <label for="{{ form.incident_type.id_for_label }}" class="form-label fw-semibold">
-                {{ form.incident_type.label }} <span class="text-danger">*</span>
-              </label>
-              {{ form.incident_type }}
-              {% if form.incident_type.errors %}
-                <div class="invalid-feedback d-block">
-                  {% for e in form.incident_type.errors %}{{ e }}{% endfor %}
-                </div>
-              {% endif %}
-            </div>
-
-            <div class="mb-3">
-              <label for="{{ form.location_text.id_for_label }}" class="form-label fw-semibold">
-                {{ form.location_text.label }}
-              </label>
-              {{ form.location_text }}
-              {% if form.location_text.errors %}
-                <div class="invalid-feedback d-block">
-                  {% for e in form.location_text.errors %}{{ e }}{% endfor %}
-                </div>
-              {% endif %}
-            </div>
-
-            <div class="mb-3">
-              <label for="{{ form.start_time.id_for_label }}" class="form-label fw-semibold">
-                {{ form.start_time.label }}
-              </label>
-              {{ form.start_time }}
-              {% if form.start_time.errors %}
-                <div class="invalid-feedback d-block">
-                  {% for e in form.start_time.errors %}{{ e }}{% endfor %}
-                </div>
-              {% endif %}
-            </div>
-
-            <div class="mb-3">
-              <label for="{{ form.description.id_for_label }}" class="form-label fw-semibold">
-                {{ form.description.label }}
-              </label>
-              {{ form.description }}
-              <div class="form-text text-muted">
-                Brief situation as reported — a full narrative goes in the incident report later.
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <div class="card shadow-sm h-100">
+            <div class="card-header bg-danger text-white fw-semibold">Incident Details</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="{{ form.title.id_for_label }}" class="form-label fw-semibold">
+                  {{ form.title.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for e in form.title.errors %}{{ e }}{% endfor %}
+                  </div>
+                {% endif %}
               </div>
-              {% if form.description.errors %}
-                <div class="invalid-feedback d-block">
-                  {% for e in form.description.errors %}{{ e }}{% endfor %}
+              <div class="mb-3">
+                <label for="{{ form.incident_type.id_for_label }}"
+                       class="form-label fw-semibold">
+                  {{ form.incident_type.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.incident_type }}
+                {% if form.incident_type.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for e in form.incident_type.errors %}{{ e }}{% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+              <div class="mb-3">
+                <label for="{{ form.location_text.id_for_label }}"
+                       class="form-label fw-semibold">{{ form.location_text.label }}</label>
+                {{ form.location_text }}
+                {% if form.location_text.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for e in form.location_text.errors %}{{ e }}{% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+              <div class="mb-3">
+                <label for="{{ form.start_time.id_for_label }}"
+                       class="form-label fw-semibold">{{ form.start_time.label }}</label>
+                {{ form.start_time }}
+                {% if form.start_time.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for e in form.start_time.errors %}{{ e }}{% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+              <div class="mb-3">
+                <label for="{{ form.description.id_for_label }}"
+                       class="form-label fw-semibold">{{ form.description.label }}</label>
+                {{ form.description }}
+                <div class="form-text text-muted">
+                  Brief situation as reported — a full narrative goes in the incident report later.
                 </div>
-              {% endif %}
+                {% if form.description.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for e in form.description.errors %}{{ e }}{% endfor %}
+                  </div>
+                {% endif %}
+              </div>
             </div>
-
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white fw-semibold">Resource Dispatch</div>
+            <div class="card-body d-flex flex-column gap-3">
+              <div class="dispatch-volunteers-field">
+                <span class="form-label fw-semibold d-block mb-1"
+                      id="volunteers-field-label">
+                  Volunteers to Dispatch <span class="text-danger">*</span>
+                </span>
+                <p class="form-text text-muted small mb-2">
+                  Search by name to add someone, choose their role for this incident, then remove with × if needed.
+                  At least one volunteer is required.
+                </p>
+                {# Rows are built by JS: each row posts assignment_volunteer (hidden PK) + assignment_role (select). #}
+                <div class="mb-2" id="id_volunteers_autocomplete_wrap">
+                  <input type="text"
+                         class="form-control"
+                         id="id_volunteers_autocomplete"
+                         placeholder="Type to search volunteers by name…"
+                         autocomplete="off"
+                         aria-labelledby="volunteers-field-label" />
+                </div>
+                <div id="id_dispatch_assignment_rows" class="d-flex flex-column gap-2"></div>
+                {% if not form.volunteers_for_dispatch.exists %}
+                  <div class="alert alert-warning py-1 px-2 mt-1 small">No active volunteers found for your unit.</div>
+                {% endif %}
+              </div>
+              <div>
+                <label for="{{ form.equipment_items.id_for_label }}"
+                       class="form-label fw-semibold">{{ form.equipment_items.label }}</label>
+                {{ form.equipment_items }}
+                <div class="form-text text-muted small">{{ form.equipment_items.help_text }}</div>
+                {% if form.equipment_items.errors %}
+                  <div class="invalid-feedback d-block text-danger small">
+                    {% for e in form.equipment_items.errors %}
+                      {{ e }}
+                      <br />
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {% if not form.equipment_items.field.queryset.exists %}
+                  <div class="alert alert-warning py-1 px-2 mt-1 small">No functional equipment found for your unit.</div>
+                {% endif %}
+              </div>
+              <div>
+                <label for="{{ form.vehicles.id_for_label }}" class="form-label fw-semibold">{{ form.vehicles.label }}</label>
+                {{ form.vehicles }}
+                <div class="form-text text-muted small">{{ form.vehicles.help_text }}</div>
+                {% if form.vehicles.errors %}
+                  <div class="invalid-feedback d-block text-danger small">
+                    {% for e in form.vehicles.errors %}
+                      {{ e }}
+                      <br />
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {% if not form.vehicles.field.queryset.exists %}
+                  <div class="alert alert-warning py-1 px-2 mt-1 small">No available vehicles found for your unit.</div>
+                {% endif %}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      <div class="col-lg-5">
-        <div class="card shadow-sm h-100">
-          <div class="card-header bg-dark text-white fw-semibold">
-            Resource Dispatch
-          </div>
-          <div class="card-body d-flex flex-column gap-3">
-
-            <div class="dispatch-volunteers-field">
-              <label for="{{ form.volunteers.id_for_label }}" class="form-label fw-semibold" id="volunteers-field-label">
-                {{ form.volunteers.label }} <span class="text-danger">*</span>
-              </label>
-              {# The real &lt;select multiple&gt; stays in the POST body; JS hides it and syncs selections. #}
-              {{ form.volunteers }}
-              <div class="form-text text-muted small">{{ form.volunteers.help_text }}</div>
-              {% if form.volunteers.errors %}
-                <div class="invalid-feedback d-block text-danger small">
-                  {% for e in form.volunteers.errors %}{{ e }}<br>{% endfor %}
-                </div>
-              {% endif %}
-              {% if not form.volunteers.field.queryset.exists %}
-                <div class="alert alert-warning py-1 px-2 mt-1 small">
-                  No active volunteers found for your unit.
-                </div>
-              {% endif %}
-            </div>
-
-            <div>
-              <label for="{{ form.equipment_items.id_for_label }}" class="form-label fw-semibold">
-                {{ form.equipment_items.label }}
-              </label>
-              {{ form.equipment_items }}
-              <div class="form-text text-muted small">{{ form.equipment_items.help_text }}</div>
-              {% if form.equipment_items.errors %}
-                <div class="invalid-feedback d-block text-danger small">
-                  {% for e in form.equipment_items.errors %}{{ e }}<br>{% endfor %}
-                </div>
-              {% endif %}
-              {% if not form.equipment_items.field.queryset.exists %}
-                <div class="alert alert-warning py-1 px-2 mt-1 small">
-                  No functional equipment found for your unit.
-                </div>
-              {% endif %}
-            </div>
-
-            <div>
-              <label for="{{ form.vehicles.id_for_label }}" class="form-label fw-semibold">
-                {{ form.vehicles.label }}
-              </label>
-              {{ form.vehicles }}
-              <div class="form-text text-muted small">{{ form.vehicles.help_text }}</div>
-              {% if form.vehicles.errors %}
-                <div class="invalid-feedback d-block text-danger small">
-                  {% for e in form.vehicles.errors %}{{ e }}<br>{% endfor %}
-                </div>
-              {% endif %}
-              {% if not form.vehicles.field.queryset.exists %}
-                <div class="alert alert-warning py-1 px-2 mt-1 small">
-                  No available vehicles found for your unit.
-                </div>
-              {% endif %}
-            </div>
-
-          </div>
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger mt-3">
+          {% for e in form.non_field_errors %}
+            {{ e }}
+            <br />
+          {% endfor %}
         </div>
+      {% endif %}
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-danger btn-lg px-5">&#x1F6A8; Dispatch Now</button>
+        <a href="{% url 'incidents:incident-list' %}"
+           class="btn btn-outline-secondary btn-lg">Cancel</a>
       </div>
-
-    </div>
-
-    {% if form.non_field_errors %}
-      <div class="alert alert-danger mt-3">
-        {% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}
-      </div>
-    {% endif %}
-
-    <div class="d-flex gap-2 mt-4">
-      <button type="submit" class="btn btn-danger btn-lg px-5">&#x1F6A8; Dispatch Now</button>
-      <a href="{% url 'incidents:incident-list' %}" class="btn btn-outline-secondary btn-lg">Cancel</a>
-    </div>
-
-  </form>
-
-</div>
+    </form>
+  </div>
 {% endblock content %}
-
 {% block inline_javascript %}
-<script>
-(function() {
-    /*
-     * Incident dispatch: volunteer picker enhancement
-     * -----------------------------------------------
-     * base.html loads jQuery and (on this page only) jQuery UI via deferred &lt;script&gt; tags in &lt;head&gt;.
-     * Inline scripts at the foot of the body run *before* those deferred scripts finish, so we must wait
-     * until window "load" before calling jQuery/jQuery UI. That mirrors how defer works in base.html.
-     *
-     * Behaviour:
-     *   1. Read every &lt;option&gt; from #id_volunteers into an in-memory list { label, value }.
-     *   2. Attach jQuery UI Autocomplete to a text input; typing filters labels (case-insensitive).
-     *   3. Choosing a row adds that option’s value to the hidden multi-select and shows a removable tag.
-     *   4. Removing a tag deselects the matching &lt;option&gt; so the next POST matches Django’s expectations.
-     */
-    window.addEventListener("load", function() {
+  {{ form.posted_dispatch_rows|json_script:"id-dispatch-rows-initial" }}
+  <script>
+    (function() {
+      /*
+       * Incident dispatch: autocomplete + one row per volunteer (hidden PK + role &lt;select&gt;).
+       * Waits for window "load" so deferred jQuery / jQuery UI from the head are available.
+       */
+      window.addEventListener("load", function() {
         if (typeof jQuery === "undefined" || !jQuery.ui || !jQuery.ui.autocomplete) {
-            return;
+          return;
         }
         var $ = jQuery;
-        var $select = $("#id_volunteers");
-        if (!$select.length) {
-            return;
+        var $rowsHost = $("#id_dispatch_assignment_rows");
+        var $input = $("#id_volunteers_autocomplete");
+        if (!$rowsHost.length || !$input.length) {
+          return;
         }
 
-        var allVolunteers = [];
-        $select.find("option").each(function() {
-            var v = $(this).val();
-            if (v === "" || v === undefined) {
-                return;
-            }
-            allVolunteers.push({ label: $(this).text(), value: String(v) });
-        });
-        if (allVolunteers.length === 0) {
-            return;
-        }
+        var allVolunteers = [{
+          %
+          for v in form.volunteers_for_dispatch %
+        } {
+          label: "{{ v.name|escapejs }}",
+          value: "{{ v.pk }}"
+        } {
+          %
+          if not forloop.last %
+        }, {
+          % endif %
+        } {
+          % endfor %
+        }];
 
-        $select.addClass("d-none");
-
-        var $wrap = $('<div class="mb-2" id="id_volunteers_autocomplete_wrap"></div>');
-        var $input = $(
-            '<input type="text" class="form-control" id="id_volunteers_autocomplete" ' +
-            'placeholder="Type to search volunteers by name…" autocomplete="off" ' +
-            'aria-labelledby="volunteers-field-label">'
-        );
-        var $chips = $('<div class="d-flex flex-wrap gap-2 mb-1" id="id_volunteers_chips" role="list"></div>');
-        $select.before($wrap);
-        $wrap.append($input);
-        $wrap.append($chips);
+        var roleChoices = [{
+          %
+          for value,
+          label in form.assignment_role_choices %
+        } {
+          v: "{{ value|escapejs }}",
+          l: "{{ label|escapejs }}"
+        } {
+          %
+          if not forloop.last %
+        }, {
+          % endif %
+        } {
+          % endfor %
+        }];
 
         function selectedIds() {
-            var raw = $select.val();
-            if (!raw) {
-                return [];
-            }
-            return Array.isArray(raw) ? raw.map(String) : [String(raw)];
+          var ids = [];
+          $rowsHost.find('input[name="assignment_volunteer"]').each(function() {
+            ids.push(String($(this).val()));
+          });
+          return ids;
         }
 
-        function renderChips() {
-            $chips.empty();
-            var ids = selectedIds();
-            for (var i = 0; i < ids.length; i++) {
-                var id = ids[i];
-                var opt = $select.find("option").filter(function() {
-                    return String($(this).val()) === String(id);
-                });
-                var label = opt.length ? opt.text() : id;
-                var $chip = $('<span class="badge bg-secondary d-inline-flex align-items-center gap-1 py-2 px-2" role="listitem"></span>');
-                $chip.append($("<span></span>").text(label));
-                var $btn = $('<button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove volunteer"></button>');
-                (function(pk) {
-                    $btn.on("click", function() {
-                        var next = selectedIds().filter(function(x) { return String(x) !== String(pk); });
-                        $select.val(next.length ? next : null);
-                        renderChips();
-                        $input.removeClass("is-invalid");
-                    });
-                })(id);
-                $chip.append($btn);
-                $chips.append($chip);
+        function buildRoleSelect(selectedValue) {
+          var $sel = $('<select name="assignment_role" class="form-select form-select-sm" aria-label="Role in incident"></select>');
+          var matched = false;
+          for (var i = 0; i < roleChoices.length; i++) {
+            var rc = roleChoices[i];
+            var $opt = $("<option></option>").attr("value", rc.v).text(rc.l);
+            if (selectedValue && rc.v === selectedValue) {
+              $opt.prop("selected", true);
+              matched = true;
             }
+            $sel.append($opt);
+          }
+          if (!matched && $sel.find("option").length) {
+            $sel.find("option").first().prop("selected", true);
+          }
+          return $sel;
+        }
+
+        function addRow(label, value, roleValue) {
+          var $row = $('<div class="dispatch-assignment-row border rounded p-2 bg-light"></div>');
+          var $hidden = $('<input type="hidden" name="assignment_volunteer" />').attr("value", value);
+          var $name = $('<span class="badge bg-secondary me-2 align-middle"></span>').text(label);
+          var $roleWrap = $('<div class="d-inline-block align-middle" style="min-width: 11rem;"></div>');
+          $roleWrap.append(buildRoleSelect(roleValue || ""));
+          var $btn = $('<button type="button" class="btn btn-sm btn-outline-danger ms-2 align-middle" aria-label="Remove volunteer">×</button>');
+          $btn.on("click", function() {
+            $row.remove();
+            $input.removeClass("is-invalid");
+          });
+          $row.append($hidden, $name, $roleWrap, $btn);
+          $rowsHost.append($row);
+        }
+
+        var initialEl = document.getElementById("id-dispatch-rows-initial");
+        if (initialEl && initialEl.textContent) {
+          try {
+            var initial = JSON.parse(initialEl.textContent);
+            for (var k = 0; k < initial.length; k++) {
+              var r = initial[k];
+              addRow(r.label, r.value, r.role);
+            }
+          } catch (e) {
+            /* ignore */ }
+        }
+
+        if (allVolunteers.length === 0) {
+          return;
         }
 
         $input.autocomplete({
-            minLength: 1,
-            source: function(request, response) {
-                var term = $.ui.autocomplete.escapeRegex(request.term);
-                var re = new RegExp(term, "i");
-                var taken = selectedIds();
-                var out = [];
-                for (var j = 0; j < allVolunteers.length; j++) {
-                    var item = allVolunteers[j];
-                    if (taken.indexOf(item.value) !== -1) {
-                        continue;
-                    }
-                    if (re.test(item.label)) {
-                        out.push(item);
-                    }
-                }
-                response(out.slice(0, 80));
-            },
-            select: function(event, ui) {
-                var ids = selectedIds().slice();
-                if (ids.indexOf(ui.item.value) === -1) {
-                    ids.push(ui.item.value);
-                }
-                $select.val(ids);
-                $input.val("");
-                renderChips();
-                $input.removeClass("is-invalid");
-                return false;
-            },
-            focus: function() {
-                return false;
+          minLength: 1,
+          source: function(request, response) {
+            var term = $.ui.autocomplete.escapeRegex(request.term);
+            var re = new RegExp(term, "i");
+            var taken = selectedIds();
+            var out = [];
+            for (var j = 0; j < allVolunteers.length; j++) {
+              var item = allVolunteers[j];
+              if (taken.indexOf(item.value) !== -1) {
+                continue;
+              }
+              if (re.test(item.label)) {
+                out.push(item);
+              }
             }
+            response(out.slice(0, 80));
+          },
+          select: function(event, ui) {
+            addRow(ui.item.label, ui.item.value);
+            $input.val("");
+            $input.removeClass("is-invalid");
+            return false;
+          },
+          focus: function() {
+            return false;
+          }
         });
-
-        renderChips();
 
         var form = document.querySelector("form");
         if (form) {
-            form.addEventListener("submit", function() {
-                if (selectedIds().length === 0) {
-                    $input.addClass("is-invalid");
-                    $select.addClass("is-invalid");
-                    var el = document.getElementById("id_volunteers_autocomplete_wrap") || document.getElementById("id_volunteers");
-                    if (el && el.scrollIntoView) {
-                        el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }
-                }
-            });
+          form.addEventListener("submit", function() {
+            if (selectedIds().length === 0) {
+              $input.addClass("is-invalid");
+              var el = document.getElementById("id_volunteers_autocomplete_wrap");
+              if (el && el.scrollIntoView) {
+                el.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center"
+                });
+              }
+            }
+          });
         }
-    });
-})();
-</script>
+      });
+    })();
+  </script>
 {% endblock inline_javascript %}

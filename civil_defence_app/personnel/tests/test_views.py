@@ -1,18 +1,20 @@
 """
 Tests for personnel/views.py
 
-Four views:
-  UnitListView       — table of all units with annotated volunteer counts.
-  UnitDetailView     — detail page for one unit with its active volunteers.
-  VolunteerListView  — paginated, searchable list of all active volunteers.
-  VolunteerDetailView— single volunteer detail card.
+Views covered:
+  UnitListView, UnitDetailView, VolunteerListView, VolunteerDetailView,
+  VolunteerDeRosterView (POST), VolunteerReinstateView (POST), and office-duty CSV views.
 """
 
 from __future__ import annotations
 
+import csv
 from datetime import datetime
+from io import StringIO
 
 import pytest
+from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
@@ -23,7 +25,10 @@ from civil_defence_app.incidents.tests.factories import IncidentFactory
 from civil_defence_app.incidents.tests.factories import UICUserFactory
 from civil_defence_app.incidents.tests.factories import UnitFactory
 from civil_defence_app.incidents.tests.factories import VolunteerFactory
-from civil_defence_app.personnel.models import OfficeDutyPeriod
+from civil_defence_app.personnel.models import OfficeDutyMonthSubmission
+from civil_defence_app.personnel.models import VolunteerOfficeDutyMonth
+from civil_defence_app.users.models import User
+from civil_defence_app.users.models import UserRole
 
 pytestmark = pytest.mark.django_db
 
@@ -37,6 +42,7 @@ def _login(user) -> Client:
 # ─────────────────────────────────────────────────────────────────────────────
 # UNIT LIST VIEW
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestUnitListView:
     url = reverse("personnel:unit-list")
@@ -81,8 +87,8 @@ class TestUnitListView:
 # UNIT DETAIL VIEW
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestUnitDetailView:
 
+class TestUnitDetailView:
     def test_authenticated_gets_200(self):
         """Any logged-in user may view a unit detail page."""
         uic = UICUserFactory.create()
@@ -106,7 +112,9 @@ class TestUnitDetailView:
         """
         uic = UICUserFactory.create()
         unit = UnitFactory.create()
-        active = VolunteerFactory.create(unit=unit, name="Active Volunteer", is_active=True)
+        active = VolunteerFactory.create(
+            unit=unit, name="Active Volunteer", is_active=True
+        )
         VolunteerFactory.create(unit=unit, name="Inactive Volunteer", is_active=False)
         url = reverse("personnel:unit-detail", kwargs={"pk": unit.pk})
         response = _login(uic).get(url)
@@ -125,6 +133,7 @@ class TestUnitDetailView:
 # ─────────────────────────────────────────────────────────────────────────────
 # VOLUNTEER LIST VIEW
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestVolunteerListView:
     url = reverse("personnel:volunteer-list")
@@ -216,8 +225,8 @@ class TestVolunteerListView:
 # VOLUNTEER DETAIL VIEW
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestVolunteerDetailView:
 
+class TestVolunteerDetailView:
     def test_authenticated_gets_200(self):
         """Any logged-in user may view a volunteer's detail card."""
         uic = UICUserFactory.create()
@@ -260,63 +269,331 @@ class TestVolunteerDetailView:
         assert "Service Log Flood Event" in html
         assert "Days served by calendar year" in html
 
-    def test_context_can_log_office_duty_for_own_uic(self):
-        """Owning UIC receives can_log_office_duty=True for volunteers in their unit."""
+    def test_volunteer_detail_links_csv_for_owning_uic(self):
+        """Owning UIC sees link to monthly office-duty CSV workflow."""
         unit = UnitFactory.create()
         uic = UICUserFactory.create(unit=unit)
         vol = VolunteerFactory.create(unit=unit)
         url = reverse("personnel:volunteer-detail", kwargs={"pk": vol.pk})
         response = _login(uic).get(url)
-        assert response.context["can_log_office_duty"] is True
+        assert response.status_code == 200
+        assert "/personnel/office-duty/" in response.content.decode()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# OFFICE DUTY POST ENDPOINTS
+# VOLUNTEER DE-ROSTER (POST)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestVolunteerOfficeDutyViews:
+class TestVolunteerDeRosterView:
+    """POST personnel:volunteer-deroster — Admin/UIC-only; date + reason required."""
 
-    def test_admin_can_start_and_end_office_duty(self):
-        """Admin may POST start then end; database reflects one closed period."""
-        admin = AdminUserFactory.create()
-        vol = VolunteerFactory.create()
-        client = _login(admin)
-        start_url = reverse("personnel:volunteer-office-duty-start", kwargs={"pk": vol.pk})
-        today = timezone.localdate().isoformat()
-        r1 = client.post(start_url, {"start_date": today})
-        assert r1.status_code == 302
-        open_row = OfficeDutyPeriod.objects.get(volunteer=vol)
-        assert open_row.ended_at is None
+    def test_unauthenticated_redirects_to_login(self):
+        vol = VolunteerFactory.create(is_active=True)
+        url = reverse("personnel:volunteer-deroster", kwargs={"pk": vol.pk})
+        r = Client().post(
+            url,
+            {"derostered_on": "2026-04-01", "deroster_reason": "Test reason here"},
+        )
+        assert r.status_code == 302
+        assert "login" in r["Location"]
 
-        end_url = reverse("personnel:volunteer-office-duty-end", kwargs={"pk": vol.pk})
-        r2 = client.post(end_url, {})
-        assert r2.status_code == 302
-        open_row.refresh_from_db()
-        assert open_row.ended_at is not None
+    def test_uic_own_unit_derosters_volunteer(self):
+        unit = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit)
+        vol = VolunteerFactory.create(unit=unit, is_active=True)
+        url = reverse("personnel:volunteer-deroster", kwargs={"pk": vol.pk})
+        r = _login(uic).post(
+            url,
+            {
+                "derostered_on": "2026-04-01",
+                "deroster_reason": "Retirement age reached",
+            },
+        )
+        assert r.status_code == 302
+        vol.refresh_from_db()
+        assert vol.is_active is False
+        assert vol.deroster_reason == "Retirement age reached"
+        assert vol.derostered_on.isoformat() == "2026-04-01"
 
-    def test_uic_wrong_unit_cannot_start_office_duty(self):
-        """UIC for unit A cannot start office duty for a volunteer in unit B."""
+    def test_uic_other_unit_gets_403(self):
         unit_a = UnitFactory.create()
         unit_b = UnitFactory.create()
         uic = UICUserFactory.create(unit=unit_a)
-        vol = VolunteerFactory.create(unit=unit_b)
-        client = _login(uic)
-        start_url = reverse("personnel:volunteer-office-duty-start", kwargs={"pk": vol.pk})
-        response = client.post(
-            start_url,
-            {"start_date": timezone.localdate().isoformat()},
+        vol = VolunteerFactory.create(unit=unit_b, is_active=True)
+        url = reverse("personnel:volunteer-deroster", kwargs={"pk": vol.pk})
+        r = _login(uic).post(
+            url,
+            {"derostered_on": "2026-04-01", "deroster_reason": "Should not apply"},
         )
-        assert response.status_code == 302
-        assert OfficeDutyPeriod.objects.filter(volunteer=vol).count() == 0
+        assert r.status_code == 403
+        vol.refresh_from_db()
+        assert vol.is_active is True
 
-    def test_double_start_rejected_when_period_open(self):
-        """Second start while a period is open does not create another row."""
+    def test_admin_can_deroster_any_unit(self):
         admin = AdminUserFactory.create()
-        vol = VolunteerFactory.create()
+        vol = VolunteerFactory.create(is_active=True)
+        url = reverse("personnel:volunteer-deroster", kwargs={"pk": vol.pk})
+        r = _login(admin).post(
+            url,
+            {
+                "derostered_on": "2026-03-15",
+                "deroster_reason": "Transferred out of district",
+            },
+        )
+        assert r.status_code == 302
+        vol.refresh_from_db()
+        assert vol.is_active is False
+
+    def test_volunteer_user_role_gets_403(self):
+        unit = UnitFactory.create()
+        vol_user = User.objects.create(
+            username="vol_only2", role=UserRole.VOLUNTEER, unit=unit
+        )
+        vol_user.set_password("testpass123")
+        vol_user.save()
+        vol = VolunteerFactory.create(unit=unit, is_active=True)
+        url = reverse("personnel:volunteer-deroster", kwargs={"pk": vol.pk})
+        r = _login(vol_user).post(
+            url,
+            {"derostered_on": "2026-04-01", "deroster_reason": "Invalid attempt"},
+        )
+        assert r.status_code == 403
+
+    def test_already_inactive_redirects_without_change(self):
+        unit = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit)
+        vol = VolunteerFactory.create(unit=unit, is_active=False)
+        url = reverse("personnel:volunteer-deroster", kwargs={"pk": vol.pk})
+        r = _login(uic).post(
+            url,
+            {"derostered_on": "2026-04-01", "deroster_reason": "Again"},
+        )
+        assert r.status_code == 302
+        vol.refresh_from_db()
+        assert vol.is_active is False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VOLUNTEER REINSTATE (POST)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestVolunteerReinstateView:
+    """POST personnel:volunteer-reinstate — same auth as de-roster; clears audit fields."""
+
+    def test_unauthenticated_redirects_to_login(self):
+        vol = VolunteerFactory.create(is_active=False)
+        url = reverse("personnel:volunteer-reinstate", kwargs={"pk": vol.pk})
+        r = Client().post(url, {})
+        assert r.status_code == 302
+        assert "login" in r["Location"]
+
+    def test_uic_reinstates_own_unit_volunteer(self):
+        unit = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit)
+        vol = VolunteerFactory.create(
+            unit=unit,
+            is_active=False,
+            derostered_on="2026-01-15",
+            deroster_reason="Left district",
+        )
+        url = reverse("personnel:volunteer-reinstate", kwargs={"pk": vol.pk})
+        r = _login(uic).post(url, {})
+        assert r.status_code == 302
+        vol.refresh_from_db()
+        assert vol.is_active is True
+        assert vol.derostered_on is None
+        assert vol.deroster_reason == ""
+
+    def test_uic_other_unit_gets_403(self):
+        unit_a = UnitFactory.create()
+        unit_b = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit_a)
+        vol = VolunteerFactory.create(unit=unit_b, is_active=False)
+        url = reverse("personnel:volunteer-reinstate", kwargs={"pk": vol.pk})
+        r = _login(uic).post(url, {})
+        assert r.status_code == 403
+        vol.refresh_from_db()
+        assert vol.is_active is False
+
+    def test_already_active_redirects_without_change(self):
+        unit = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit)
+        vol = VolunteerFactory.create(unit=unit, is_active=True)
+        url = reverse("personnel:volunteer-reinstate", kwargs={"pk": vol.pk})
+        r = _login(uic).post(url, {})
+        assert r.status_code == 302
+        vol.refresh_from_db()
+        assert vol.is_active is True
+
+    def test_volunteer_user_role_gets_403(self):
+        unit = UnitFactory.create()
+        vol_user = User.objects.create(
+            username="vol_only3", role=UserRole.VOLUNTEER, unit=unit
+        )
+        vol_user.set_password("testpass123")
+        vol_user.save()
+        vol = VolunteerFactory.create(unit=unit, is_active=False)
+        url = reverse("personnel:volunteer-reinstate", kwargs={"pk": vol.pk})
+        r = _login(vol_user).post(url, {})
+        assert r.status_code == 403
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OFFICE DUTY — MONTHLY CSV
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _csv_bytes_for_volunteers(*vols: Volunteer, days: str = "3") -> bytes:
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow(["serial_no", "name", "volunteer_id", "days_worked"])
+    for vol in vols:
+        w.writerow([vol.serial_no or "", vol.name or "", str(vol.pk), days])
+    return buf.getvalue().encode("utf-8")
+
+
+class TestOfficeDutyMonthlyHubAndDownload:
+    hub = reverse("personnel:office-duty-monthly")
+    dl = reverse("personnel:office-duty-template-download")
+
+    def test_hub_unauthenticated_redirects(self):
+        assert Client().get(self.hub).status_code == 302
+
+    def test_volunteer_role_gets_403_on_hub(self):
+        unit = UnitFactory.create()
+        vol_user = User.objects.create(
+            username="vol_only", role=UserRole.VOLUNTEER, unit=unit
+        )
+        vol_user.set_password("testpass123")
+        vol_user.save()
+        r = _login(vol_user).get(self.hub)
+        assert r.status_code == 403
+
+    def test_admin_download_template_200(self):
+        admin = AdminUserFactory.create()
+        unit = UnitFactory.create()
+        VolunteerFactory.create(unit=unit, serial_no="S1", name="A", is_active=True)
+        q = f"dl-year=2026&dl-month=4&dl-unit={unit.pk}"
+        r = _login(admin).get(f"{self.dl}?{q}")
+        assert r.status_code == 200
+        assert "text/csv" in r["Content-Type"]
+        body = r.content.decode("utf-8-sig")
+        assert "volunteer_id" in body
+        assert "S1" in body
+
+    def test_uic_download_uses_own_unit(self):
+        unit = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit)
+        VolunteerFactory.create(unit=unit, is_active=True)
+        q = "dl-year=2026&dl-month=3"
+        r = _login(uic).get(f"{self.dl}?{q}")
+        assert r.status_code == 200
+
+
+class TestOfficeDutyMonthlyUpload:
+    upload_url = reverse("personnel:office-duty-upload")
+
+    def test_admin_upload_creates_rows_and_submission(self):
+        admin = AdminUserFactory.create()
+        unit = UnitFactory.create()
+        vol = VolunteerFactory.create(
+            unit=unit, serial_no="X1", name="Tester", is_active=True
+        )
+        csv_bytes = _csv_bytes_for_volunteers(vol, days="5")
+        f = SimpleUploadedFile("filled.csv", csv_bytes, content_type="text/csv")
         client = _login(admin)
-        start_url = reverse("personnel:volunteer-office-duty-start", kwargs={"pk": vol.pk})
-        d = timezone.localdate().isoformat()
-        client.post(start_url, {"start_date": d})
-        client.post(start_url, {"start_date": d})
-        assert OfficeDutyPeriod.objects.filter(volunteer=vol).count() == 1
+        r = client.post(
+            self.upload_url,
+            {
+                "up-year": "2026",
+                "up-month": "6",
+                "up-unit": str(unit.pk),
+                "up-csv_file": f,
+            },
+        )
+        assert r.status_code == 302
+        row = VolunteerOfficeDutyMonth.objects.get(volunteer=vol, year=2026, month=6)
+        assert row.days_worked == 5
+        assert OfficeDutyMonthSubmission.objects.filter(
+            unit=unit, year=2026, month=6
+        ).exists()
+
+    def test_upload_rejects_wrong_unit_volunteer(self):
+        admin = AdminUserFactory.create()
+        unit_a = UnitFactory.create()
+        unit_b = UnitFactory.create()
+        vol_b = VolunteerFactory.create(unit=unit_b, serial_no="B1", is_active=True)
+        csv_bytes = _csv_bytes_for_volunteers(vol_b)
+        f = SimpleUploadedFile("bad.csv", csv_bytes, content_type="text/csv")
+        client = _login(admin)
+        r = client.post(
+            self.upload_url,
+            {
+                "up-year": "2026",
+                "up-month": "5",
+                "up-unit": str(unit_a.pk),
+                "up-csv_file": f,
+            },
+        )
+        assert r.status_code == 302
+        assert VolunteerOfficeDutyMonth.objects.count() == 0
+
+
+class TestOfficeDutyStatusAndEmail:
+    status_url = reverse("personnel:office-duty-status")
+    email_url = reverse("personnel:office-duty-email-uic")
+
+    def test_uic_gets_403_on_status(self):
+        uic = UICUserFactory.create()
+        r = _login(uic).get(self.status_url)
+        assert r.status_code == 403
+
+    def test_admin_status_shows_submitted_flag(self):
+        admin = AdminUserFactory.create()
+        unit = UnitFactory.create()
+        OfficeDutyMonthSubmission.objects.create(
+            unit=unit, year=2026, month=8, submitted_by=admin
+        )
+        r = _login(admin).get(self.status_url, {"st-year": "2026", "st-month": "8"})
+        assert r.status_code == 200
+        html = r.content.decode()
+        assert unit.name in html
+        assert "Submitted" in html
+
+    def test_email_uic_sends_attachment_when_email_present(self):
+        mail.outbox.clear()
+        admin = AdminUserFactory.create()
+        unit = UnitFactory.create()
+        uic = UICUserFactory.create(unit=unit, email="uic@example.test")
+        r = _login(admin).post(
+            self.email_url,
+            {
+                "em-unit": str(unit.pk),
+                "em-year": "2026",
+                "em-month": "9",
+            },
+        )
+        assert r.status_code == 302
+        assert len(mail.outbox) == 1
+        msg = mail.outbox[0]
+        assert msg.to == ["uic@example.test"]
+        assert len(msg.attachments) == 1
+        assert msg.attachments[0][2] == "text/csv"
+
+    def test_email_no_outbox_when_uic_has_no_email(self):
+        mail.outbox.clear()
+        admin = AdminUserFactory.create()
+        unit = UnitFactory.create()
+        UICUserFactory.create(unit=unit, email="")
+        r = _login(admin).post(
+            self.email_url,
+            {
+                "em-unit": str(unit.pk),
+                "em-year": "2026",
+                "em-month": "10",
+            },
+        )
+        assert r.status_code == 302
+        assert len(mail.outbox) == 0

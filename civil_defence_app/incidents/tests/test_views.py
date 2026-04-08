@@ -28,8 +28,6 @@ What we verify:
 
 from __future__ import annotations
 
-import io
-
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
@@ -37,6 +35,7 @@ from django.urls import reverse
 
 from civil_defence_app.incidents.models import Incident
 from civil_defence_app.incidents.models import IncidentAssignment
+from civil_defence_app.incidents.models import IncidentAssignmentRole
 from civil_defence_app.incidents.models import IncidentMedia
 from civil_defence_app.incidents.models import IncidentStatus
 from civil_defence_app.users.models import User
@@ -44,7 +43,6 @@ from civil_defence_app.users.models import User
 from .factories import EquipmentFactory
 from .factories import IncidentFactory
 from .factories import UICUserFactory
-from .factories import UnitFactory
 from .factories import VehicleFactory
 from .factories import VolunteerFactory
 
@@ -54,6 +52,7 @@ pytestmark = pytest.mark.django_db
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def login_client(user: User, password: str = "testpass123") -> Client:
     """
@@ -71,6 +70,7 @@ def login_client(user: User, password: str = "testpass123") -> Client:
 # ─────────────────────────────────────────────────────────────────────────────
 # LIST VIEW
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestIncidentListView:
     url = reverse("incidents:incident-list")
@@ -123,6 +123,7 @@ class TestIncidentListView:
 # DISPATCH VIEW
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestIncidentDispatchView:
     url = reverse("incidents:incident-dispatch")
 
@@ -168,11 +169,15 @@ class TestIncidentDispatchView:
         volunteer = VolunteerFactory.create(unit=uic.unit)
         client = login_client(uic)
         initial_count = Incident.objects.count()
-        response = client.post(self.url, {
-            "title": "Test incident",
-            "incident_type": "FLOOD",
-            "volunteers": [volunteer.pk],
-        })
+        response = client.post(
+            self.url,
+            {
+                "title": "Test incident",
+                "incident_type": "FLOOD",
+                "assignment_volunteer": [str(volunteer.pk)],
+                "assignment_role": [IncidentAssignmentRole.FIREFIGHTER],
+            },
+        )
         assert Incident.objects.count() == initial_count + 1
         new_incident = Incident.objects.latest("created_at")
         assert new_incident.unit == uic.unit
@@ -187,13 +192,30 @@ class TestIncidentDispatchView:
         vol1 = VolunteerFactory.create(unit=uic.unit)
         vol2 = VolunteerFactory.create(unit=uic.unit)
         client = login_client(uic)
-        client.post(self.url, {
-            "title": "Multi-volunteer incident",
-            "incident_type": "SEARCH",
-            "volunteers": [vol1.pk, vol2.pk],
-        })
+        client.post(
+            self.url,
+            {
+                "title": "Multi-volunteer incident",
+                "incident_type": "SEARCH",
+                "assignment_volunteer": [str(vol1.pk), str(vol2.pk)],
+                "assignment_role": [
+                    IncidentAssignmentRole.DRIVER,
+                    IncidentAssignmentRole.SCUBA_DIVER,
+                ],
+            },
+        )
         incident = Incident.objects.latest("created_at")
         assert IncidentAssignment.objects.filter(incident=incident).count() == 2
+        roles = set(
+            IncidentAssignment.objects.filter(incident=incident).values_list(
+                "role",
+                flat=True,
+            ),
+        )
+        assert roles == {
+            IncidentAssignmentRole.DRIVER,
+            IncidentAssignmentRole.SCUBA_DIVER,
+        }
 
     def test_valid_post_auto_generates_incident_number(self):
         """
@@ -203,11 +225,15 @@ class TestIncidentDispatchView:
         uic = UICUserFactory.create()
         volunteer = VolunteerFactory.create(unit=uic.unit)
         client = login_client(uic)
-        client.post(self.url, {
-            "title": "Auto-numbered incident",
-            "incident_type": "FIRE",
-            "volunteers": [volunteer.pk],
-        })
+        client.post(
+            self.url,
+            {
+                "title": "Auto-numbered incident",
+                "incident_type": "FIRE",
+                "assignment_volunteer": [str(volunteer.pk)],
+                "assignment_role": [IncidentAssignmentRole.FIREFIGHTER],
+            },
+        )
         incident = Incident.objects.latest("created_at")
         assert incident.incident_number is not None
         assert uic.unit.slug.upper() in incident.incident_number
@@ -222,11 +248,15 @@ class TestIncidentDispatchView:
         VolunteerFactory.create(unit=uic.unit)
         client = login_client(uic)
         initial_count = Incident.objects.count()
-        response = client.post(self.url, {
-            "title": "Missing volunteers",
-            "incident_type": "FLOOD",
-            "volunteers": [],
-        })
+        response = client.post(
+            self.url,
+            {
+                "title": "Missing volunteers",
+                "incident_type": "FLOOD",
+                "assignment_volunteer": [],
+                "assignment_role": [],
+            },
+        )
         assert response.status_code == 200
         assert Incident.objects.count() == initial_count
 
@@ -241,14 +271,20 @@ class TestIncidentDispatchView:
         volunteer = VolunteerFactory.create(unit=uic.unit)
         equip = EquipmentFactory.create(unit=uic.unit)
         client = login_client(uic)
-        client.post(self.url, {
-            "title": "Incident with equipment",
-            "incident_type": "FIRE",
-            "volunteers": [volunteer.pk],
-            "equipment_items": [equip.pk],
-        })
+        client.post(
+            self.url,
+            {
+                "title": "Incident with equipment",
+                "incident_type": "FIRE",
+                "assignment_volunteer": [str(volunteer.pk)],
+                "assignment_role": [IncidentAssignmentRole.CUTTER],
+                "equipment_items": [equip.pk],
+            },
+        )
         incident = Incident.objects.latest("created_at")
-        assert IncidentEquipment.objects.filter(incident=incident, equipment=equip).exists()
+        assert IncidentEquipment.objects.filter(
+            incident=incident, equipment=equip
+        ).exists()
 
     def test_valid_post_with_vehicle_creates_allocations(self):
         """
@@ -261,19 +297,26 @@ class TestIncidentDispatchView:
         volunteer = VolunteerFactory.create(unit=uic.unit)
         vehicle = VehicleFactory.create(unit=uic.unit)
         client = login_client(uic)
-        client.post(self.url, {
-            "title": "Incident with vehicle",
-            "incident_type": "ACCIDENT",
-            "volunteers": [volunteer.pk],
-            "vehicles": [vehicle.pk],
-        })
+        client.post(
+            self.url,
+            {
+                "title": "Incident with vehicle",
+                "incident_type": "ACCIDENT",
+                "assignment_volunteer": [str(volunteer.pk)],
+                "assignment_role": [IncidentAssignmentRole.DRIVER],
+                "vehicles": [vehicle.pk],
+            },
+        )
         incident = Incident.objects.latest("created_at")
-        assert IncidentVehicle.objects.filter(incident=incident, vehicle=vehicle).exists()
+        assert IncidentVehicle.objects.filter(
+            incident=incident, vehicle=vehicle
+        ).exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DETAIL VIEW
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestIncidentDetailView:
     """
@@ -322,6 +365,7 @@ class TestIncidentDetailView:
 # REPORT VIEW
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestIncidentReportView:
     """
     Tests for the post-incident report submission page.
@@ -365,12 +409,15 @@ class TestIncidentReportView:
         incident = IncidentFactory.create(unit=uic.unit, status=IncidentStatus.OPEN)
         client = login_client(uic)
         url = reverse("incidents:incident-report", kwargs={"pk": incident.pk})
-        response = client.post(url, {
-            "action": "save_report",
-            "final_report": "Full narrative of the flood response.",
-            "end_time": "2026-03-27T16:00",
-            "status": IncidentStatus.CLOSED,
-        })
+        response = client.post(
+            url,
+            {
+                "action": "save_report",
+                "final_report": "Full narrative of the flood response.",
+                "end_time": "2026-03-27T16:00",
+                "status": IncidentStatus.CLOSED,
+            },
+        )
         assert response.status_code == 302
         incident.refresh_from_db()
         assert incident.final_report == "Full narrative of the flood response."
@@ -395,11 +442,14 @@ class TestIncidentReportView:
             b"\xff\xd8\xff\xe0" + b"\x00" * 100,
             content_type="image/jpeg",
         )
-        response = client.post(url, {
-            "action": "upload_media",
-            "files": fake_image,
-            "caption": "Scene at arrival",
-        })
+        response = client.post(
+            url,
+            {
+                "action": "upload_media",
+                "files": fake_image,
+                "caption": "Scene at arrival",
+            },
+        )
         assert response.status_code == 302
         assert IncidentMedia.objects.filter(incident=incident).exists()
         media = IncidentMedia.objects.get(incident=incident)
@@ -414,9 +464,12 @@ class TestIncidentReportView:
         incident = IncidentFactory.create(unit=uic.unit)
         client = login_client(uic)
         url = reverse("incidents:incident-report", kwargs={"pk": incident.pk})
-        response = client.post(url, {
-            "action": "upload_media",
-            "caption": "No files uploaded",
-        })
+        response = client.post(
+            url,
+            {
+                "action": "upload_media",
+                "caption": "No files uploaded",
+            },
+        )
         assert response.status_code == 302
         assert IncidentMedia.objects.filter(incident=incident).count() == 0

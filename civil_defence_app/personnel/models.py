@@ -19,7 +19,10 @@ The __str__ method controls what Django shows when it needs to represent an
 object as a string (e.g. in the admin, dropdowns, shell).
 """
 
+import calendar
+
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.encoding import iri_to_uri
 from django.utils.translation import gettext_lazy as _
@@ -233,7 +236,10 @@ class Volunteer(TimeStampedModel):
 
     # Some rows contain multiple numbers separated by commas/spaces (up to 50 chars).
     mobile = models.CharField(
-        _("Mobile / Phone No."), max_length=60, blank=True, default=""
+        _("Mobile / Phone No."),
+        max_length=60,
+        blank=True,
+        default="",
     )
     email = models.EmailField(_("Email"), max_length=254, blank=True, default="")
 
@@ -251,7 +257,10 @@ class Volunteer(TimeStampedModel):
     # zeros and spaces.  Some entries have spaces plus extra digits ("1926 0447 0225 0992 3"),
     # so we allow up to 30 chars.
     aadhar_no = models.CharField(
-        _("Aadhaar Card No."), max_length=30, blank=True, default=""
+        _("Aadhaar Card No."),
+        max_length=30,
+        blank=True,
+        default="",
     )
 
     # HRMS is a government HR management system ID (e.g. "W2017021570").
@@ -335,6 +344,23 @@ class Volunteer(TimeStampedModel):
         help_text=_("Uncheck to deactivate without deleting the record"),
     )
 
+    # When a volunteer is removed from active service (de-rostered), the web UI
+    # records the effective date and a free-text reason. These fields support
+    # audit and reporting; `is_active=False` is what excludes them from dispatch,
+    # training pickers, and the public volunteer list.
+    derostered_on = models.DateField(
+        _("De-rostered on"),
+        null=True,
+        blank=True,
+        help_text=_("Date removed from active roster (if de-rostered)."),
+    )
+    deroster_reason = models.TextField(
+        _("De-roster reason"),
+        blank=True,
+        default="",
+        help_text=_("Why this volunteer was de-rostered from service."),
+    )
+
     class Meta:
         verbose_name = _("Volunteer")
         verbose_name_plural = _("Volunteers")
@@ -394,8 +420,8 @@ class Volunteer(TimeStampedModel):
 # Service / wage day counts combine both: incident segments from the incident
 # timeline plus office periods from this model.
 #
-# At most one open period (ended_at IS NULL) per volunteer is enforced so the
-# UI can offer a single Start / End flow on the volunteer detail page.
+# At most one open period (ended_at IS NULL) per volunteer is enforced for
+# legacy data integrity; new office duty is entered via monthly CSV uploads.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -448,3 +474,121 @@ class OfficeDutyPeriod(TimeStampedModel):
     def __str__(self) -> str:
         end = self.ended_at.strftime("%Y-%m-%d %H:%M") if self.ended_at else "ongoing"
         return f"{self.volunteer.name} office duty {self.started_at} → {end}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OFFICE DUTY — MONTHLY AGGREGATE (CSV workflow)
+#
+# UICs upload one CSV per unit per calendar month with days worked in office per
+# volunteer.  This replaces start/stop period logging for new data; legacy
+# OfficeDutyPeriod rows remain for history and service-log merging.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class VolunteerOfficeDutyMonth(TimeStampedModel):
+    """
+    Total days a volunteer worked in office during a given calendar month.
+
+    Uniqueness on (volunteer, year, month) so re-uploading a unit CSV upserts.
+    """
+
+    volunteer = models.ForeignKey(
+        "personnel.Volunteer",
+        verbose_name=_("Volunteer"),
+        on_delete=models.CASCADE,
+        related_name="office_duty_months",
+    )
+    year = models.PositiveSmallIntegerField(_("Year"))
+    month = models.PositiveSmallIntegerField(_("Month"))
+    days_worked = models.PositiveSmallIntegerField(_("Days worked in office"))
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Recorded By"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_office_duty_months",
+    )
+
+    class Meta:
+        verbose_name = _("Volunteer office duty (monthly)")
+        verbose_name_plural = _("Volunteer office duty (monthly)")
+        ordering = ["-year", "-month", "volunteer__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["volunteer", "year", "month"],
+                name="unique_volunteer_office_duty_month",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(month__gte=1) & models.Q(month__lte=12),
+                name="office_duty_month_month_range",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        if self.month is not None and (self.month < 1 or self.month > 12):
+            raise ValidationError({"month": _("Month must be between 1 and 12.")})
+        if (
+            self.year is not None
+            and self.month is not None
+            and self.days_worked is not None
+        ):
+            _w, max_days = calendar.monthrange(int(self.year), int(self.month))
+            if self.days_worked > max_days:
+                raise ValidationError(
+                    {
+                        "days_worked": _(
+                            "Cannot exceed %(max)d days in this month.",
+                        )
+                        % {"max": max_days},
+                    },
+                )
+
+    def __str__(self) -> str:
+        return (
+            f"{self.volunteer.name} {self.year}-{self.month:02d}: {self.days_worked}d"
+        )
+
+
+class OfficeDutyMonthSubmission(TimeStampedModel):
+    """
+    Tracks that a unit has submitted office-duty CSV data for a calendar month.
+
+    Updated on each successful upload so admins can see which units filed.
+    """
+
+    unit = models.ForeignKey(
+        "personnel.Unit",
+        verbose_name=_("Unit"),
+        on_delete=models.CASCADE,
+        related_name="office_duty_month_submissions",
+    )
+    year = models.PositiveSmallIntegerField(_("Year"))
+    month = models.PositiveSmallIntegerField(_("Month"))
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Submitted By"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="office_duty_month_submissions",
+    )
+
+    class Meta:
+        verbose_name = _("Office duty month submission")
+        verbose_name_plural = _("Office duty month submissions")
+        ordering = ["-year", "-month", "unit__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["unit", "year", "month"],
+                name="unique_unit_office_duty_month_submission",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(month__gte=1) & models.Q(month__lte=12),
+                name="office_duty_submission_month_range",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.unit.name} {self.year}-{self.month:02d}"

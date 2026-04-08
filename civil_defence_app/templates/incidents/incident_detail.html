@@ -1,293 +1,285 @@
 {% extends "base.html" %}
-{% block title %}{{ incident.incident_number|default:incident.title }} — Civil Defence{% endblock title %}
+
+{% block title %}
+  {{ incident.incident_number|default:incident.title }} — Civil Defence
+{% endblock title %}
 {% block nav_incidents_active %}active{% endblock %}
-
 {% block content %}
-<div class="container-fluid py-4">
-
-  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
-    <div>
-      <h2 class="mb-0 fw-bold">{{ incident.incident_number|default:"—" }}</h2>
-      <p class="text-muted mb-0">{{ incident.title }}</p>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-      {% if incident.status == "OPEN" %}
-        <span class="badge bg-success fs-6 px-3 py-2">Open</span>
-      {% elif incident.status == "CLOSED" %}
-        <span class="badge bg-dark fs-6 px-3 py-2">Closed</span>
-      {% else %}
-        <span class="badge bg-warning text-dark fs-6 px-3 py-2">{{ incident.get_status_display }}</span>
-      {% endif %}
-
-      
-      {% if can_report and incident.status != "CLOSED" %}
-        <a href="{% url 'incidents:incident-report' incident.pk %}"
-           class="btn btn-warning btn-sm">
-          &#x1F4CB; File Report
-        </a>
-      {% elif can_report and incident.status == "CLOSED" %}
-        <a href="{% url 'incidents:incident-report' incident.pk %}"
-           class="btn btn-outline-secondary btn-sm">
-          &#x270F; Edit Report
-        </a>
-      {% endif %}
-
-      <a href="{% url 'incidents:incident-list' %}" class="btn btn-outline-secondary btn-sm">
-        &#x2190; All Incidents
-      </a>
-    </div>
-  </div>
-
-  <div class="row g-3 mb-3">
-
-    <div class="col-md-6 col-xl-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-secondary text-white fw-semibold small">Basic Info</div>
-        <div class="card-body small">
-          <dl class="row mb-0">
-            <dt class="col-5 text-muted">Incident No.</dt>
-            <dd class="col-7 fw-bold">{{ incident.incident_number|default:"—" }}</dd>
-
-            <dt class="col-5 text-muted">Type</dt>
-            <dd class="col-7">
-              <span class="badge bg-secondary">{{ incident.get_incident_type_display }}</span>
-            </dd>
-
-            <dt class="col-5 text-muted">Unit</dt>
-            <dd class="col-7">{{ incident.unit.name }}</dd>
-
-            <dt class="col-5 text-muted">Reported by</dt>
-            <dd class="col-7">{% if incident.reported_by %}{{ incident.reported_by.name|default:incident.reported_by.username }}{% else %}—{% endif %}</dd>
-
-            <dt class="col-5 text-muted">Logged at</dt>
-            <dd class="col-7">{{ incident.created_at|date:"d M Y H:i" }}</dd>
-          </dl>
-        </div>
+  <div class="container-fluid py-4">
+    <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+      <div>
+        <h2 class="mb-0 fw-bold">{{ incident.incident_number|default:"—" }}</h2>
+        <p class="text-muted mb-0">{{ incident.title }}</p>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        {% if incident.status == "OPEN" %}
+          <span class="badge bg-success fs-6 px-3 py-2">Open</span>
+        {% elif incident.status == "CLOSED" %}
+          <span class="badge bg-dark fs-6 px-3 py-2">Closed</span>
+        {% else %}
+          <span class="badge bg-warning text-dark fs-6 px-3 py-2">{{ incident.get_status_display }}</span>
+        {% endif %}
+        {% if can_report and incident.status != "CLOSED" %}
+          <a href="{% url 'incidents:incident-report' incident.pk %}"
+             class="btn btn-warning btn-sm">&#x1F4CB; File Report</a>
+        {% elif can_report and incident.status == "CLOSED" %}
+          <a href="{% url 'incidents:incident-report' incident.pk %}"
+             class="btn btn-outline-secondary btn-sm">&#x270F; Edit Report</a>
+        {% endif %}
+        <a href="{% url 'incidents:incident-list' %}"
+           class="btn btn-outline-secondary btn-sm">&#x2190; All Incidents</a>
       </div>
     </div>
-
-    <div class="col-md-6 col-xl-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-secondary text-white fw-semibold small">Location &amp; Timeline</div>
-        <div class="card-body small">
-          <dl class="row mb-0">
-            <dt class="col-5 text-muted">Location</dt>
-            <dd class="col-7">{{ incident.location_text|default:"—" }}</dd>
-
-            <dt class="col-5 text-muted">Started</dt>
-            <dd class="col-7">
-              {% if incident.start_time %}
-                {{ incident.start_time|date:"d M Y H:i" }}
-              {% else %}—{% endif %}
-            </dd>
-
-            <dt class="col-5 text-muted">Ended</dt>
-            <dd class="col-7">
-              {% if incident.end_time %}
-                {{ incident.end_time|date:"d M Y H:i" }}
-              {% else %}<span class="text-muted fst-italic">In progress</span>{% endif %}
-            </dd>
-          </dl>
-          {% if incident.description %}
-            <hr class="my-2">
-            <p class="mb-0 text-muted" style="white-space: pre-wrap;">{{ incident.description }}</p>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-12 col-xl-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-secondary text-white fw-semibold small">Response Summary</div>
-        <div class="card-body">
-          <div class="row text-center g-2">
-            <div class="col-4">
-              <div class="border rounded py-2">
-                <div class="fs-3 fw-bold text-primary">{{ incident.assignments.count }}</div>
-                <div class="small text-muted">Volunteers</div>
-              </div>
-            </div>
-            <div class="col-4">
-              <div class="border rounded py-2">
-                <div class="fs-3 fw-bold text-success">{{ incident.equipment_allocations.count }}</div>
-                <div class="small text-muted">Equipment</div>
-              </div>
-            </div>
-            <div class="col-4">
-              <div class="border rounded py-2">
-                <div class="fs-3 fw-bold text-warning">{{ incident.vehicle_allocations.count }}</div>
-                <div class="small text-muted">Vehicles</div>
-              </div>
-            </div>
+    <div class="row g-3 mb-3">
+      <div class="col-md-6 col-xl-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-secondary text-white fw-semibold small">Basic Info</div>
+          <div class="card-body small">
+            <dl class="row mb-0">
+              <dt class="col-5 text-muted">Incident No.</dt>
+              <dd class="col-7 fw-bold">
+                {{ incident.incident_number|default:"—" }}
+              </dd>
+              <dt class="col-5 text-muted">Type</dt>
+              <dd class="col-7">
+                <span class="badge bg-secondary">{{ incident.get_incident_type_display }}</span>
+              </dd>
+              <dt class="col-5 text-muted">Unit</dt>
+              <dd class="col-7">
+                {{ incident.unit.name }}
+              </dd>
+              <dt class="col-5 text-muted">Reported by</dt>
+              <dd class="col-7">
+                {% if incident.reported_by %}
+                  {{ incident.reported_by.name|default:incident.reported_by.username }}
+                {% else %}
+                  —
+                {% endif %}
+              </dd>
+              <dt class="col-5 text-muted">Logged at</dt>
+              <dd class="col-7">
+                {{ incident.created_at|date:"d M Y H:i" }}
+              </dd>
+            </dl>
           </div>
         </div>
       </div>
-    </div>
-
-  </div>
-
-  {% if incident.assignments.all %}
-  <div class="card shadow-sm mb-3">
-    <div class="card-header fw-semibold bg-primary text-white">
-      &#x1F465; Dispatched Volunteers
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-sm table-striped table-hover mb-0 align-middle small">
-          <thead class="table-dark">
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Role in Incident</th>
-              <th>Notes</th>
-              <th>Assigned by</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for a in incident.assignments.all %}
-            <tr>
-              <td class="text-muted">{{ forloop.counter }}</td>
-              <td class="fw-semibold">{{ a.volunteer.name }}</td>
-              <td>{{ a.role|default:"—" }}</td>
-              <td>{{ a.notes|default:"—"|truncatechars:60 }}</td>
-              <td class="text-muted">{% if a.assigned_by %}{{ a.assigned_by.name|default:a.assigned_by.username }}{% else %}—{% endif %}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <div class="row g-3 mb-3">
-
-    {% if incident.equipment_allocations.all %}
-    <div class="col-md-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-header fw-semibold bg-success text-white">
-          &#x1F9F0; Equipment Deployed
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-sm table-striped mb-0 align-middle small">
-              <thead class="table-dark">
-                <tr>
-                  <th>Equipment</th>
-                  <th class="text-center">Qty</th>
-                  <th class="text-center">Returned</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for ea in incident.equipment_allocations.all %}
-                <tr>
-                  <td>{{ ea.equipment.name }}</td>
-                  <td class="text-center">{{ ea.quantity_deployed }}</td>
-                  <td class="text-center">
-                    {% if ea.returned %}
-                      <span class="badge bg-success">Yes</span>
-                    {% else %}
-                      <span class="badge bg-warning text-dark">No</span>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if incident.vehicle_allocations.all %}
-    <div class="col-md-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-header fw-semibold bg-warning text-dark">
-          &#x1F697; Vehicles Dispatched
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-sm table-striped mb-0 align-middle small">
-              <thead class="table-dark">
-                <tr>
-                  <th>Vehicle</th>
-                  <th>Dispatched</th>
-                  <th>Returned</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for va in incident.vehicle_allocations.all %}
-                <tr>
-                  <td>
-                    {{ va.vehicle.get_vehicle_type_display }}
-                    <span class="text-muted small">{{ va.vehicle.registration_no }}</span>
-                  </td>
-                  <td class="small text-muted">
-                    {% if va.dispatched_at %}{{ va.dispatched_at|date:"d M H:i" }}{% else %}—{% endif %}
-                  </td>
-                  <td class="small text-muted">
-                    {% if va.returned_at %}{{ va.returned_at|date:"d M H:i" }}{% else %}
-                      <span class="text-warning">In field</span>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-  </div>
-
-  {% if incident.final_report %}
-  <div class="card shadow-sm mb-3">
-    <div class="card-header fw-semibold bg-dark text-white">
-      &#x1F4C4; Final Report
-    </div>
-    <div class="card-body">
-      
-      <p style="white-space: pre-wrap; font-size: 0.9rem;">{{ incident.final_report }}</p>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if incident.media_files.all %}
-  <div class="card shadow-sm mb-3">
-    <div class="card-header fw-semibold">
-      &#x1F4F7; Attached Media
-    </div>
-    <div class="card-body">
-      <div class="row g-3">
-        {% for media in incident.media_files.all %}
-        <div class="col-6 col-md-3 col-lg-2">
-          
-            
-          {% with media.file.name|lower as fname %}
-            {% if ".jpg" in fname or ".jpeg" in fname or ".png" in fname or ".gif" in fname %}
-              <img src="{{ media.file.url }}"
-                   class="img-fluid rounded border"
-                   alt="{{ media.caption|default:'Incident photo' }}"
-                   style="object-fit: cover; height: 120px; width: 100%;">
-            {% else %}
-              <a href="{{ media.file.url }}" target="_blank"
-                 class="btn btn-outline-secondary btn-sm w-100 text-truncate">
-                &#x1F4CE; {{ media.file.name|slice:"-30:" }}
-              </a>
+      <div class="col-md-6 col-xl-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-secondary text-white fw-semibold small">Location &amp; Timeline</div>
+          <div class="card-body small">
+            <dl class="row mb-0">
+              <dt class="col-5 text-muted">Location</dt>
+              <dd class="col-7">
+                {{ incident.location_text|default:"—" }}
+              </dd>
+              <dt class="col-5 text-muted">Started</dt>
+              <dd class="col-7">
+                {% if incident.start_time %}
+                  {{ incident.start_time|date:"d M Y H:i" }}
+                {% else %}
+                  —
+                {% endif %}
+              </dd>
+              <dt class="col-5 text-muted">Ended</dt>
+              <dd class="col-7">
+                {% if incident.end_time %}
+                  {{ incident.end_time|date:"d M Y H:i" }}
+                {% else %}
+                  <span class="text-muted fst-italic">In progress</span>
+                {% endif %}
+              </dd>
+            </dl>
+            {% if incident.description %}
+              <hr class="my-2" />
+              <p class="mb-0 text-muted" style="white-space: pre-wrap;">{{ incident.description }}</p>
             {% endif %}
-          {% endwith %}
-          {% if media.caption %}
-            <p class="small text-muted mt-1 mb-0 text-truncate">{{ media.caption }}</p>
-          {% endif %}
+          </div>
         </div>
-        {% endfor %}
+      </div>
+      <div class="col-md-12 col-xl-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-secondary text-white fw-semibold small">Response Summary</div>
+          <div class="card-body">
+            <div class="row text-center g-2">
+              <div class="col-4">
+                <div class="border rounded py-2">
+                  <div class="fs-3 fw-bold text-primary">{{ incident.assignments.count }}</div>
+                  <div class="small text-muted">Volunteers</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="border rounded py-2">
+                  <div class="fs-3 fw-bold text-success">{{ incident.equipment_allocations.count }}</div>
+                  <div class="small text-muted">Equipment</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="border rounded py-2">
+                  <div class="fs-3 fw-bold text-warning">{{ incident.vehicle_allocations.count }}</div>
+                  <div class="small text-muted">Vehicles</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+    {% if incident.assignments.all %}
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold bg-primary text-white">&#x1F465; Dispatched Volunteers</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover mb-0 align-middle small">
+              <thead class="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Role in Incident</th>
+                  <th>Notes</th>
+                  <th>Assigned by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in incident.assignments.all %}
+                  <tr>
+                    <td class="text-muted">{{ forloop.counter }}</td>
+                    <td class="fw-semibold">{{ a.volunteer.name }}</td>
+                    <td>{{ a.get_role_display }}</td>
+                    <td>{{ a.notes|default:"—"|truncatechars:60 }}</td>
+                    <td class="text-muted">
+                      {% if a.assigned_by %}
+                        {{ a.assigned_by.name|default:a.assigned_by.username }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    <div class="row g-3 mb-3">
+      {% if incident.equipment_allocations.all %}
+        <div class="col-md-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-header fw-semibold bg-success text-white">&#x1F9F0; Equipment Deployed</div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-striped mb-0 align-middle small">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Equipment</th>
+                      <th class="text-center">Qty</th>
+                      <th class="text-center">Returned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for ea in incident.equipment_allocations.all %}
+                      <tr>
+                        <td>{{ ea.equipment.name }}</td>
+                        <td class="text-center">{{ ea.quantity_deployed }}</td>
+                        <td class="text-center">
+                          {% if ea.returned %}
+                            <span class="badge bg-success">Yes</span>
+                          {% else %}
+                            <span class="badge bg-warning text-dark">No</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+      {% if incident.vehicle_allocations.all %}
+        <div class="col-md-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-header fw-semibold bg-warning text-dark">&#x1F697; Vehicles Dispatched</div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-striped mb-0 align-middle small">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Vehicle</th>
+                      <th>Dispatched</th>
+                      <th>Returned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for va in incident.vehicle_allocations.all %}
+                      <tr>
+                        <td>
+                          {{ va.vehicle.get_vehicle_type_display }}
+                          <span class="text-muted small">{{ va.vehicle.registration_no }}</span>
+                        </td>
+                        <td class="small text-muted">
+                          {% if va.dispatched_at %}
+                            {{ va.dispatched_at|date:"d M H:i" }}
+                          {% else %}
+                            —
+                          {% endif %}
+                        </td>
+                        <td class="small text-muted">
+                          {% if va.returned_at %}
+                            {{ va.returned_at|date:"d M H:i" }}
+                          {% else %}
+                            <span class="text-warning">In field</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+    {% if incident.final_report %}
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold bg-dark text-white">&#x1F4C4; Final Report</div>
+        <div class="card-body">
+          <p style="white-space: pre-wrap; font-size: 0.9rem;">{{ incident.final_report }}</p>
+        </div>
+      </div>
+    {% endif %}
+    {% if incident.media_files.all %}
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">&#x1F4F7; Attached Media</div>
+        <div class="card-body">
+          <div class="row g-3">
+            {% for media in incident.media_files.all %}
+              <div class="col-6 col-md-3 col-lg-2">
+                {% with media.file.name|lower as fname %}
+                  {% if ".jpg" in fname or ".jpeg" in fname or ".png" in fname or ".gif" in fname %}
+                    <img src="{{ media.file.url }}"
+                         class="img-fluid rounded border"
+                         alt="{{ media.caption|default:'Incident photo' }}"
+                         style="object-fit: cover;
+                                height: 120px;
+                                width: 100%" />
+                  {% else %}
+                    <a href="{{ media.file.url }}"
+                       target="_blank"
+                       class="btn btn-outline-secondary btn-sm w-100 text-truncate">
+                      &#x1F4CE; {{ media.file.name|slice:"-30:" }}
+                    </a>
+                  {% endif %}
+                {% endwith %}
+                {% if media.caption %}<p class="small text-muted mt-1 mb-0 text-truncate">{{ media.caption }}</p>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
   </div>
-  {% endif %}
-
-</div> 
 {% endblock content %}

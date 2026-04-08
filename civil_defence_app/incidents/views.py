@@ -12,7 +12,6 @@ Four views cover the complete incident lifecycle:
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -33,10 +32,10 @@ from .models import IncidentMedia
 from .models import IncidentStatus
 from .models import IncidentType
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # PERMISSION MIXIN
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class UnitInChargeRequiredMixin(UserPassesTestMixin):
     """
@@ -58,10 +57,7 @@ class UnitInChargeRequiredMixin(UserPassesTestMixin):
         user = self.request.user
         if user.is_superuser:
             return True
-        return (
-            getattr(user, "role", None) == "UNIT_IN_CHARGE"
-            and user.unit is not None
-        )
+        return getattr(user, "role", None) == "UNIT_IN_CHARGE" and user.unit is not None
 
     def handle_no_permission(self):
         """
@@ -83,6 +79,7 @@ class UnitInChargeRequiredMixin(UserPassesTestMixin):
 # INCIDENT LIST VIEW
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class IncidentListView(LoginRequiredMixin, ListView):
     """
     Paginated, filterable table of all incidents.
@@ -96,19 +93,20 @@ class IncidentListView(LoginRequiredMixin, ListView):
     select_related("unit") pre-fetches the related Unit object in the same
     SQL query to avoid N+1 queries when displaying inc.unit.name in the table.
     """
-    model               = Incident
-    template_name       = "incidents/incident_list.html"
+
+    model = Incident
+    template_name = "incidents/incident_list.html"
     context_object_name = "incidents"
-    paginate_by         = 50
+    paginate_by = 50
 
     def get_queryset(self):
         qs = Incident.objects.select_related("unit")
 
         # Read filter values from the GET query string (safe — empty string if absent).
-        self.q        = self.request.GET.get("q", "").strip()
-        self.status   = self.request.GET.get("status", "").strip()
+        self.q = self.request.GET.get("q", "").strip()
+        self.status = self.request.GET.get("status", "").strip()
         self.inc_type = self.request.GET.get("type", "").strip()
-        self.unit_id  = self.request.GET.get("unit", "").strip()
+        self.unit_id = self.request.GET.get("unit", "").strip()
 
         if self.q:
             qs = qs.filter(title__icontains=self.q)
@@ -123,13 +121,14 @@ class IncidentListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["q"]               = self.q
+        context["q"] = self.q
         context["selected_status"] = self.status
-        context["selected_type"]   = self.inc_type
-        context["selected_unit"]   = self.unit_id
-        context["status_choices"]  = IncidentStatus.choices
-        context["type_choices"]    = IncidentType.choices
+        context["selected_type"] = self.inc_type
+        context["selected_unit"] = self.unit_id
+        context["status_choices"] = IncidentStatus.choices
+        context["type_choices"] = IncidentType.choices
         from civil_defence_app.personnel.models import Unit
+
         context["units"] = Unit.objects.order_by("name")
         return context
 
@@ -137,6 +136,7 @@ class IncidentListView(LoginRequiredMixin, ListView):
 # ─────────────────────────────────────────────────────────────────────────────
 # INCIDENT DETAIL VIEW
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class IncidentDetailView(LoginRequiredMixin, DetailView):
     """
@@ -152,20 +152,17 @@ class IncidentDetailView(LoginRequiredMixin, DetailView):
       prefetch_related → assignments, equipment, vehicles, logs, media
                          (reverse FK sets — separate queries with IN clauses)
     """
-    model         = Incident
+
+    model = Incident
     template_name = "incidents/incident_detail.html"
 
     def get_queryset(self):
-        return (
-            Incident.objects
-            .select_related("unit", "reported_by")
-            .prefetch_related(
-                "assignments__volunteer",
-                "equipment_allocations__equipment",
-                "vehicle_allocations__vehicle",
-                "log_entries__entered_by",
-                "media_files",
-            )
+        return Incident.objects.select_related("unit", "reported_by").prefetch_related(
+            "assignments__volunteer",
+            "equipment_allocations__equipment",
+            "vehicle_allocations__vehicle",
+            "log_entries__entered_by",
+            "media_files",
         )
 
     def get_context_data(self, **kwargs):
@@ -174,9 +171,8 @@ class IncidentDetailView(LoginRequiredMixin, DetailView):
         # "File Report" button only when the logged-in user owns the incident.
         user = self.request.user
         incident = self.object
-        context["can_report"] = (
-            user.is_superuser
-            or (getattr(user, "is_unit_in_charge", False) and user.unit == incident.unit)
+        context["can_report"] = user.is_superuser or (
+            getattr(user, "is_unit_in_charge", False) and user.unit == incident.unit
         )
         return context
 
@@ -185,6 +181,7 @@ class IncidentDetailView(LoginRequiredMixin, DetailView):
 # INCIDENT DISPATCH VIEW
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class IncidentDispatchView(UnitInChargeRequiredMixin, LoginRequiredMixin, View):
     """
     Unit In-Charge logs a new incoming call and dispatches resources.
@@ -192,7 +189,8 @@ class IncidentDispatchView(UnitInChargeRequiredMixin, LoginRequiredMixin, View):
     GET  → render the blank dispatch form filtered to the user's unit
     POST → validate the form; if valid:
              1. Save the Incident (incident_number is auto-generated in model.save)
-             2. Create IncidentAssignment rows for each selected volunteer
+             2. Create IncidentAssignment rows for each (volunteer, role) pair
+                from cleaned_data["dispatch_assignments"]
              3. Create IncidentEquipment rows for each selected equipment item
              4. Create IncidentVehicle rows for each selected vehicle
            On success redirect to the new incident's detail page.
@@ -215,6 +213,7 @@ class IncidentDispatchView(UnitInChargeRequiredMixin, LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         """Render the blank dispatch form."""
         from django.shortcuts import render
+
         return render(request, self.template_name, {"form": self._get_form()})
 
     def post(self, request, *args, **kwargs):
@@ -233,52 +232,54 @@ class IncidentDispatchView(UnitInChargeRequiredMixin, LoginRequiredMixin, View):
         # single unit.  If ANY write fails, ALL writes are rolled back so the
         # database never ends up in a half-saved state.
         with transaction.atomic():
-
             # 1. Save the Incident itself (commit=False would skip the DB write
             #    so we use commit=True — the default — here).
             incident = form.save(commit=False)
-            incident.unit        = request.user.unit
+            incident.unit = request.user.unit
             incident.reported_by = request.user
-            incident.status      = IncidentStatus.OPEN
+            incident.status = IncidentStatus.OPEN
             # The model's save() auto-generates incident_number.
             incident.save()
 
-            # 2. Create an IncidentAssignment row for each selected volunteer.
-            #    cleaned_data["volunteers"] is a QuerySet of Volunteer objects
-            #    that passed form validation.
-            for volunteer in form.cleaned_data["volunteers"]:
+            # 2. Create an IncidentAssignment row per (volunteer, role) from the
+            #    parallel POST lists validated in IncidentDispatchForm.clean().
+            for volunteer, role in form.cleaned_data["dispatch_assignments"]:
                 IncidentAssignment.objects.create(
-                    incident    = incident,
-                    volunteer   = volunteer,
-                    assigned_by = request.user,
+                    incident=incident,
+                    volunteer=volunteer,
+                    role=role,
+                    assigned_by=request.user,
                 )
 
             # 3. Create IncidentEquipment rows (optional field — may be empty).
             for equipment in form.cleaned_data.get("equipment_items", []):
                 IncidentEquipment.objects.create(
-                    incident  = incident,
-                    equipment = equipment,
+                    incident=incident,
+                    equipment=equipment,
                 )
 
             # 4. Create IncidentVehicle rows (optional field — may be empty).
             for vehicle in form.cleaned_data.get("vehicles", []):
                 IncidentVehicle.objects.create(
-                    incident      = incident,
-                    vehicle       = vehicle,
-                    dispatched_at = incident.start_time or timezone.now(),
-                    authorised_by = request.user,
+                    incident=incident,
+                    vehicle=vehicle,
+                    dispatched_at=incident.start_time or timezone.now(),
+                    authorised_by=request.user,
                 )
 
         messages.success(
             request,
             f"Incident {incident.incident_number} logged and resources dispatched.",
         )
-        return redirect(reverse("incidents:incident-detail", kwargs={"pk": incident.pk}))
+        return redirect(
+            reverse("incidents:incident-detail", kwargs={"pk": incident.pk})
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # INCIDENT REPORT VIEW
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class IncidentReportView(LoginRequiredMixin, UpdateView):
     """
@@ -296,8 +297,8 @@ class IncidentReportView(LoginRequiredMixin, UpdateView):
       and pre-populates the form with the current field values.
     """
 
-    model         = Incident
-    form_class    = IncidentReportForm
+    model = Incident
+    form_class = IncidentReportForm
     template_name = "incidents/incident_report.html"
 
     def get_queryset(self):
@@ -307,7 +308,7 @@ class IncidentReportView(LoginRequiredMixin, UpdateView):
           - all incidents for superusers
         """
         user = self.request.user
-        qs   = Incident.objects.select_related("unit")
+        qs = Incident.objects.select_related("unit")
         if not user.is_superuser:
             qs = qs.filter(unit=user.unit)
         return qs
@@ -374,7 +375,7 @@ class IncidentReportView(LoginRequiredMixin, UpdateView):
         objects — one per file the user selected in the file picker.
         We create one IncidentMedia row for each file.
         """
-        files   = request.FILES.getlist("files")
+        files = request.FILES.getlist("files")
         caption = request.POST.get("caption", "").strip()
 
         if not files:
@@ -382,13 +383,13 @@ class IncidentReportView(LoginRequiredMixin, UpdateView):
         else:
             for f in files:
                 IncidentMedia.objects.create(
-                    incident    = self.object,
-                    file        = f,
-                    caption     = caption,
-                    uploaded_by = request.user,
+                    incident=self.object,
+                    file=f,
+                    caption=caption,
+                    uploaded_by=request.user,
                 )
             messages.success(request, f"{len(files)} file(s) attached to the incident.")
 
         return redirect(
-            reverse("incidents:incident-report", kwargs={"pk": self.object.pk})
+            reverse("incidents:incident-report", kwargs={"pk": self.object.pk}),
         )

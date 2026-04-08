@@ -2,7 +2,7 @@
 Tests for incidents/forms.py
 
 What we verify:
-  - IncidentDispatchForm: volunteers field is required.
+  - IncidentDispatchForm: at least one assignment_volunteer + assignment_role pair is required.
   - IncidentDispatchForm: equipment_items and vehicles are optional.
   - IncidentDispatchForm: querysets are scoped to the supplied unit —
     resources from another unit must not appear.
@@ -17,11 +17,11 @@ import pytest
 
 from civil_defence_app.incidents.forms import IncidentDispatchForm
 from civil_defence_app.incidents.forms import IncidentReportForm
+from civil_defence_app.incidents.models import IncidentAssignmentRole
 from civil_defence_app.incidents.models import IncidentStatus
 
 from .factories import EquipmentFactory
 from .factories import IncidentFactory
-from .factories import UICUserFactory
 from .factories import UnitFactory
 from .factories import VehicleFactory
 from .factories import VolunteerFactory
@@ -38,29 +38,36 @@ class TestIncidentDispatchForm:
     volunteers / equipment / vehicles querysets to that unit only.
     """
 
-    def _minimal_post_data(self, volunteer_ids: list[int]) -> dict:
+    def _minimal_post_data(
+        self,
+        volunteer_pks: list[int],
+        roles: list[str] | None = None,
+    ) -> dict:
         """
         Helper that returns the minimum valid POST data for the dispatch form.
-        title and incident_type are the only model-level required fields;
-        volunteers is required at the form level.
+        Parallel lists ``assignment_volunteer`` and ``assignment_role`` mirror
+        the dispatch template (one role per volunteer).
         """
+        if roles is None:
+            roles = [IncidentAssignmentRole.FIREFIGHTER for _ in volunteer_pks]
         return {
             "title": "Flash flood near river bank",
             "incident_type": "FLOOD",
-            "volunteers": volunteer_ids,
+            "assignment_volunteer": [str(pk) for pk in volunteer_pks],
+            "assignment_role": list(roles),
         }
 
     def test_volunteers_required_when_empty(self):
         """
-        Submitting the form without selecting any volunteer must fail
-        validation — the 'volunteers' field has required=True.
+        Submitting the form without any assignment pair must fail validation
+        (clean() raises a non-field error).
         """
         unit = UnitFactory.create()
         VolunteerFactory.create(unit=unit)
-        data = self._minimal_post_data(volunteer_ids=[])
+        data = self._minimal_post_data(volunteer_pks=[])
         form = IncidentDispatchForm(data=data, unit=unit)
         assert not form.is_valid()
-        assert "volunteers" in form.errors
+        assert "__all__" in form.errors
 
     def test_valid_form_with_volunteers_only(self):
         """
@@ -69,9 +76,13 @@ class TestIncidentDispatchForm:
         """
         unit = UnitFactory.create()
         volunteer = VolunteerFactory.create(unit=unit)
-        data = self._minimal_post_data(volunteer_ids=[volunteer.pk])
+        data = self._minimal_post_data(volunteer_pks=[volunteer.pk])
         form = IncidentDispatchForm(data=data, unit=unit)
         assert form.is_valid(), form.errors
+        pairs = form.cleaned_data["dispatch_assignments"]
+        assert len(pairs) == 1
+        assert pairs[0][0] == volunteer
+        assert pairs[0][1] == IncidentAssignmentRole.FIREFIGHTER
 
     def test_equipment_is_optional(self):
         """
@@ -81,7 +92,7 @@ class TestIncidentDispatchForm:
         unit = UnitFactory.create()
         volunteer = VolunteerFactory.create(unit=unit)
         EquipmentFactory.create(unit=unit)
-        data = self._minimal_post_data(volunteer_ids=[volunteer.pk])
+        data = self._minimal_post_data(volunteer_pks=[volunteer.pk])
         form = IncidentDispatchForm(data=data, unit=unit)
         assert form.is_valid(), form.errors
         assert list(form.cleaned_data["equipment_items"]) == []
@@ -94,47 +105,43 @@ class TestIncidentDispatchForm:
         unit = UnitFactory.create()
         volunteer = VolunteerFactory.create(unit=unit)
         VehicleFactory.create(unit=unit)
-        data = self._minimal_post_data(volunteer_ids=[volunteer.pk])
+        data = self._minimal_post_data(volunteer_pks=[volunteer.pk])
         form = IncidentDispatchForm(data=data, unit=unit)
         assert form.is_valid(), form.errors
         assert list(form.cleaned_data["vehicles"]) == []
 
     def test_volunteers_queryset_scoped_to_unit(self):
         """
-        The volunteers queryset must only contain active volunteers from the
-        supplied unit.  Volunteers from another unit must be excluded even if
-        their PKs are passed in the POST data — Django rejects IDs outside
-        the queryset with a validation error.
+        Volunteers from another unit must be rejected in clean() even if
+        their PKs are posted.
         """
         unit_a = UnitFactory.create()
         unit_b = UnitFactory.create()
         volunteer_b = VolunteerFactory.create(unit=unit_b)
         VolunteerFactory.create(unit=unit_a)
-        data = self._minimal_post_data(volunteer_ids=[volunteer_b.pk])
+        data = self._minimal_post_data(volunteer_pks=[volunteer_b.pk])
         form = IncidentDispatchForm(data=data, unit=unit_a)
         assert not form.is_valid()
-        assert "volunteers" in form.errors
+        assert "__all__" in form.errors
 
     def test_inactive_volunteers_excluded(self):
         """
-        Inactive volunteers (is_active=False) must be excluded from the
-        queryset regardless of unit — they should not be deployable.
+        Inactive volunteers (is_active=False) must not be deployable.
         """
         unit = UnitFactory.create()
         inactive = VolunteerFactory.create(unit=unit, is_active=False)
-        data = self._minimal_post_data(volunteer_ids=[inactive.pk])
+        data = self._minimal_post_data(volunteer_pks=[inactive.pk])
         form = IncidentDispatchForm(data=data, unit=unit)
         assert not form.is_valid()
-        assert "volunteers" in form.errors
+        assert "__all__" in form.errors
 
     def test_form_without_unit_has_empty_querysets(self):
         """
-        When no unit is passed (unit=None), all three resource querysets must
-        remain empty (.none()).  This guards against accidentally showing all
-        resources system-wide if the view omits the unit kwarg.
+        When no unit is passed (unit=None), equipment and vehicle querysets
+        stay empty; volunteers_for_dispatch() is empty.
         """
         form = IncidentDispatchForm(unit=None)
-        assert form.fields["volunteers"].queryset.count() == 0
+        assert form.volunteers_for_dispatch().count() == 0
         assert form.fields["equipment_items"].queryset.count() == 0
         assert form.fields["vehicles"].queryset.count() == 0
 
@@ -151,13 +158,16 @@ class TestIncidentDispatchForm:
         data = {
             "title": "Building collapse",
             "incident_type": "COLLAPSE",
-            "volunteers": [volunteer.pk],
+            "assignment_volunteer": [str(volunteer.pk)],
+            "assignment_role": [IncidentAssignmentRole.CUTTER],
             "equipment_items": [equipment.pk],
             "vehicles": [vehicle.pk],
         }
         form = IncidentDispatchForm(data=data, unit=unit)
         assert form.is_valid(), form.errors
-        assert volunteer in form.cleaned_data["volunteers"]
+        assert form.cleaned_data["dispatch_assignments"] == [
+            (volunteer, IncidentAssignmentRole.CUTTER),
+        ]
         assert equipment in form.cleaned_data["equipment_items"]
         assert vehicle in form.cleaned_data["vehicles"]
 

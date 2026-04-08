@@ -10,7 +10,6 @@ from __future__ import annotations
 from datetime import date
 from datetime import datetime
 
-import pytest
 from django.utils import timezone
 
 from civil_defence_app.personnel.service_log import ServiceLogRow
@@ -74,6 +73,30 @@ def test_build_year_summary_operational_and_office(monkeypatch):
     assert row["operational_days"] == 3
     assert row["office_days"] == 3
     assert row["total_days"] == 6
+
+
+def test_build_year_summary_office_monthly_credit_not_full_month_range():
+    """
+    Monthly CSV aggregates credit a fixed day count to one calendar year,
+    not the inclusive span of first–last day of month (which would over-count).
+    """
+    fixed = timezone.make_aware(datetime(2026, 6, 15, 12, 0, 0))
+    rows = [
+        ServiceLogRow(
+            deployment_kind="OFFICE",
+            label="Office duty — Mar 2026 (10 days)",
+            period_start=date(2026, 3, 1),
+            period_end=date(2026, 3, 31),
+            incident_pk=None,
+            sort_key=fixed,
+            office_days_credited=10,
+            office_credit_year=2026,
+        ),
+    ]
+    summary = build_year_summary(rows)
+    assert len(summary) == 1
+    assert summary[0]["year"] == 2026
+    assert summary[0]["office_days"] == 10
 
 
 def test_effective_end_date_for_row_uses_today_when_open(monkeypatch):

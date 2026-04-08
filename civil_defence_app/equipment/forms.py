@@ -13,12 +13,17 @@ EquipmentMaintenanceLogForm
       2. Updating Equipment.is_functional = is_fit.
       3. Updating Equipment.last_check_date = check_date.
       4. Updating Equipment.status to OK or REPAIR accordingly.
+
+EquipmentCreateForm
+    Admin web flow: unit + equipment type (+ optional quantity/notes). The view
+    sets name, category, unique_id, is_functional, and status on save.
 """
 
 import datetime
 
 from django import forms
 
+from .models import Equipment
 from .models import EquipmentMaintenanceLog
 
 
@@ -34,7 +39,7 @@ class EquipmentMaintenanceLogForm(forms.ModelForm):
     """
 
     class Meta:
-        model  = EquipmentMaintenanceLog
+        model = EquipmentMaintenanceLog
         # We deliberately exclude:
         #   equipment   — set by the view from the URL kwargs, not user input
         #   checked_by  — set by the view from request.user
@@ -53,14 +58,17 @@ class EquipmentMaintenanceLogForm(forms.ModelForm):
             ),
             # Textarea for free-text observations.
             "remarks": forms.Textarea(
-                attrs={"class": "form-control", "rows": 4,
-                       "placeholder": "Describe the condition, work done, parts replaced, etc."},
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": "Describe the condition, work done, parts replaced, etc.",
+                },
             ),
         }
         labels = {
             "check_date": "Inspection Date",
-            "is_fit":     "Equipment is fit for service",
-            "remarks":    "Remarks / Observations",
+            "is_fit": "Equipment is fit for service",
+            "remarks": "Remarks / Observations",
         }
         help_texts = {
             "is_fit": (
@@ -83,3 +91,39 @@ class EquipmentMaintenanceLogForm(forms.ModelForm):
         # Only pre-fill if no initial value was provided by the caller
         if not self.initial.get("check_date"):
             self.initial["check_date"] = datetime.date.today().isoformat()
+
+
+class EquipmentCreateForm(forms.ModelForm):
+    """
+    Admin-only create: operator selects district unit and master equipment type.
+    Long description text lives on ``EquipmentType`` only; this form does not
+    duplicate it per physical item.
+    """
+
+    class Meta:
+        model = Equipment
+        fields = ["unit", "equipment_type", "quantity", "notes"]
+        widgets = {
+            "unit": forms.Select(attrs={"class": "form-select"}),
+            "equipment_type": forms.Select(attrs={"class": "form-select"}),
+            "quantity": forms.NumberInput(
+                attrs={"class": "form-control", "min": 1},
+            ),
+            "notes": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Optional notes for this specific item…",
+                },
+            ),
+        }
+        labels = {
+            "unit": "District unit",
+            "equipment_type": "Equipment type",
+            "quantity": "Quantity",
+            "notes": "Notes (optional)",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["equipment_type"].required = True

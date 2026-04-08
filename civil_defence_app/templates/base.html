@@ -1,276 +1,465 @@
 {% load static i18n %}
+
 <!DOCTYPE html> {% get_current_language as LANGUAGE_CODE %}
 <html lang="{{ LANGUAGE_CODE }}">
-
-<head>
+  <head>
     <meta charset="utf-8" />
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
-    <title>{% block title %}Civil Defence App{% endblock title %}</title>
+    <title>
+      {% block title %}
+        Civil Defence App
+      {% endblock title %}
+    </title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Civil Defence personnel, units, training, equipment, fleet and incident response" />
+    <meta name="description"
+          content="Civil Defence personnel, units, training, equipment, fleet and incident response" />
     <meta name="author" content="Sanjay Singh" />
-    <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" /> {% block css %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css" integrity="sha512-SbiR/eusphKoMVVXysTKG/7VseWii+Y3FdHrt0EpKgpToZeemhqHeZeLWLhJutz/2ut2Vw1uQEj2MbRF+TVBUA==" crossorigin="anonymous" referrerpolicy="no-referrer"
-    />
-    <link href="{% static 'css/project.css' %}" rel="stylesheet" /> {% endblock css %} {% block javascript %}
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.bundle.min.js" integrity="sha512-i9cEfJwUwViEPFKdC1enz4ZRGBj8YQo6QByFTF92YXHi7waCqyexvRD75S5NVTsSiTv7rKWqG9Y5eFxmRsOn0A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script defer src="{% static 'js/project.js' %}"></script>
+    <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
+    {% block css %}
+      <link rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css"
+            integrity="sha512-SbiR/eusphKoMVVXysTKG/7VseWii+Y3FdHrt0EpKgpToZeemhqHeZeLWLhJutz/2ut2Vw1uQEj2MbRF+TVBUA=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer" />
+      <link href="{% static 'css/project.css' %}" rel="stylesheet" />
+    {% endblock css %}
+    {% block javascript %}
+      <script defer
+              src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+              integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+              crossorigin="anonymous"
+              referrerpolicy="no-referrer"></script>
+      <script defer
+              src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.bundle.min.js"
+              integrity="sha512-i9cEfJwUwViEPFKdC1enz4ZRGBj8YQo6QByFTF92YXHi7waCqyexvRD75S5NVTsSiTv7rKWqG9Y5eFxmRsOn0A=="
+              crossorigin="anonymous"
+              referrerpolicy="no-referrer"></script>
+      <script defer src="{% static 'js/project.js' %}"></script>
     {% endblock javascript %}
-</head>
-
-<body class="{% block bodyclass %}{% endblock bodyclass %}">
-    {% block body %} {% with cur_app=request.resolver_match.app_name|default:'' %}
-    <nav class="navbar navbar-expand-xl navbar-dark bg-dark sticky-top shadow-sm">
-        <div class="container-fluid">
-
+  </head>
+  <body class="{% block bodyclass %}{% endblock bodyclass %}">
+    {% block body %}
+      {% with cur_app=request.resolver_match.app_name|default:'' %}
+        <nav class="navbar navbar-expand-xl navbar-dark bg-dark sticky-top shadow-sm">
+          <div class="container-fluid">
             <a class="navbar-brand fw-bold" href="{% url 'home' %}">&#x1F6E1;&#xFE0F; Civil Defence</a>
-
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-
+            <button class="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navMenu"
+                    aria-controls="navMenu"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="collapse navbar-collapse" id="navMenu">
-
-                <ul class="navbar-nav me-auto mb-2 mb-xl-0">
-
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'home' %}">Home</a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match and request.resolver_match.url_name == 'about' %}active{% endif %}" href="{% url 'about' %}">Workflow</a>
-                    </li>
-
-                    {% if request.user.is_authenticated %} {% if request.user.is_superuser or request.user.is_admin_role %}
-
+              <ul class="navbar-nav me-auto mb-2 mb-xl-0">
+                <li class="nav-item">
+                  <a class="nav-link {% if request.path == '/' %}active{% endif %}"
+                     href="{% url 'home' %}">Home</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {% if request.resolver_match and request.resolver_match.url_name == 'about' %}active{% endif %}"
+                     href="{% url 'about' %}">Workflow</a>
+                </li>
+                {% if request.user.is_authenticated %}
+                  {% if request.user.is_superuser or request.user.is_admin_role %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'personnel' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Personnel</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'personnel:unit-list' %}">Units / Districts</a></li>
-                            <li><a class="dropdown-item" href="{% url 'personnel:volunteer-list' %}">Volunteers</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'personnel' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Personnel</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'personnel:unit-list' %}">Units / Districts</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'personnel:volunteer-list' %}">Volunteers</a>
+                        </li>
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <a class="dropdown-item"
+                             href="{% url 'personnel:office-duty-monthly' %}">Office duty (CSV)</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'personnel:office-duty-status' %}">Office duty status</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Training</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item fw-semibold" href="{% url 'training:training-coverage-summary' %}">Coverage by Unit</a></li>
-                            <li><a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a></li>
-                            <li><a class="dropdown-item" href="{% url 'training:instance-list' %}">Batches / Instances</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'training:training-programme-create' %}">+ New programme</a></li>
-                            <li><a class="dropdown-item" href="{% url 'training:training-instance-create' %}">+ New batch</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Training</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item fw-semibold"
+                             href="{% url 'training:training-coverage-summary' %}">Coverage by Unit</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'training:instance-list' %}">Batches / Instances</a>
+                        </li>
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <a class="dropdown-item"
+                             href="{% url 'training:training-programme-create' %}">+ New programme</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item"
+                             href="{% url 'training:training-instance-create' %}">+ New batch</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Incidents</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'incidents:incident-list' %}">All Incidents</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item text-danger fw-semibold" href="{% url 'incidents:incident-dispatch' %}">Log Incident</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Incidents</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'incidents:incident-list' %}">All Incidents</a>
+                        </li>
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <a class="dropdown-item text-danger fw-semibold"
+                             href="{% url 'incidents:incident-dispatch' %}">Log Incident</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'equipment' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Equipment</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item fw-semibold" href="{% url 'equipment:equipment-inventory-summary' %}">Inventory by Unit</a></li>
-                            <li><a class="dropdown-item" href="{% url 'equipment:equipment-list' %}">All Items (detailed list)</a></li>
-                            <li><a class="dropdown-item text-warning" href="{% url 'equipment:equipment-list' %}?functional=0">&#x26A0;&#xFE0F; Non-functional Items</a></li>
-                            <li><a class="dropdown-item text-danger" href="{% url 'equipment:equipment-overdue' %}">&#x1F6A8; Overdue Maintenance</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><span class="dropdown-item-text text-muted small">Maintenance</span></li>
-                            <li><a class="dropdown-item" href="{% url 'equipment:equipment-list' %}?functional=0">Log Maintenance (select item first)</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'equipment' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Equipment</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item fw-semibold"
+                             href="{% url 'equipment:equipment-inventory-summary' %}">Inventory by Unit</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'equipment:equipment-list' %}">All Items (detailed list)</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item text-warning"
+                             href="{% url 'equipment:equipment-list' %}?functional=0">&#x26A0;&#xFE0F; Non-functional Items</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item text-danger"
+                             href="{% url 'equipment:equipment-overdue' %}">&#x1F6A8; Overdue Maintenance</a>
+                        </li>
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'equipment:equipment-create' %}">+ Add equipment</a>
+                        </li>
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <span class="dropdown-item-text text-muted small">Maintenance</span>
+                        </li>
+                        <li>
+                          <a class="dropdown-item"
+                             href="{% url 'equipment:equipment-list' %}?functional=0">Log Maintenance (select item first)</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'fleet' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Fleet</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'fleet:vehicle-list' %}">All Vehicles</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'fleet' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Fleet</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'fleet:vehicle-list' %}">All Vehicles</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-warning" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">&#x2699;&#xFE0F; Admin</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'admin:index' %}">Django Admin Panel</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item" href="{% url 'admin:users_user_changelist' %}">User Management</a></li>
-                            <li><a class="dropdown-item" href="{% url 'admin:personnel_unit_changelist' %}">Unit Management</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle text-warning"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">&#x2699;&#xFE0F; Admin</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'admin:index' %}">Django Admin Panel</a>
+                        </li>
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'admin:users_user_changelist' %}">User Management</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item"
+                             href="{% url 'admin:personnel_unit_changelist' %}">Unit Management</a>
+                        </li>
+                      </ul>
                     </li>
-
-                    {% elif request.user.is_unit_in_charge %}
-
+                  {% elif request.user.is_unit_in_charge %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %} fw-semibold" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Incidents</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'incidents:incident-list' %}">All Incidents</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item text-danger fw-bold" href="{% url 'incidents:incident-dispatch' %}">&#x2795; Log Incident</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %} fw-semibold"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Incidents</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'incidents:incident-list' %}">All Incidents</a>
+                        </li>
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <a class="dropdown-item text-danger fw-bold"
+                             href="{% url 'incidents:incident-dispatch' %}">&#x2795; Log Incident</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'personnel' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Personnel</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'personnel:unit-list' %}">Units / Districts</a></li>
-                            <li><a class="dropdown-item" href="{% url 'personnel:volunteer-list' %}">Volunteers</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'personnel' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Personnel</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'personnel:unit-list' %}">Units / Districts</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'personnel:volunteer-list' %}">Volunteers</a>
+                        </li>
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <a class="dropdown-item"
+                             href="{% url 'personnel:office-duty-monthly' %}">Office duty (CSV)</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Training</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            {% if request.user.unit %}
-                            <li><a class="dropdown-item fw-semibold" href="{% url 'training:training-unit-summary' request.user.unit.pk %}">My Unit Training Summary</a></li>
-                            {% endif %}
-                            <li><a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a></li>
-                            <li><a class="dropdown-item" href="{% url 'training:instance-list' %}">Batches / Instances</a></li>
-                            {% if request.user.unit %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'training:training-instance-create' %}">+ New batch</a></li>
-                            {% endif %}
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Training</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        {% if request.user.unit %}
+                          <li>
+                            <a class="dropdown-item fw-semibold"
+                               href="{% url 'training:training-unit-summary' request.user.unit.pk %}">My Unit Training Summary</a>
+                          </li>
+                        {% endif %}
+                        <li>
+                          <a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{% url 'training:instance-list' %}">Batches / Instances</a>
+                        </li>
+                        {% if request.user.unit %}
+                          <li>
+                            <hr class="dropdown-divider" />
+                          </li>
+                          <li>
+                            <a class="dropdown-item"
+                               href="{% url 'training:training-instance-create' %}">+ New batch</a>
+                          </li>
+                        {% endif %}
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'equipment' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Equipment</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            {% if request.user.unit %}
-                            <li><a class="dropdown-item" href="{% url 'equipment:unit-inventory' request.user.unit.pk %}">My Unit Inventory</a></li>
-                            <li><a class="dropdown-item" href="{% url 'equipment:unit-logs' request.user.unit.pk %}">My Unit Logs</a></li>
-                            <li><a class="dropdown-item text-warning" href="{% url 'equipment:equipment-list' %}?unit={{ request.user.unit.pk }}&functional=0">&#x26A0;&#xFE0F; Non-functional Items</a></li>
-                            <li><a class="dropdown-item text-danger" href="{% url 'equipment:equipment-overdue' %}">&#x1F6A8; Overdue Maintenance</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><span class="dropdown-item-text text-muted small">Maintenance</span></li>
-                            <li><a class="dropdown-item" href="{% url 'equipment:equipment-list' %}?unit={{ request.user.unit.pk }}&functional=0">Log Maintenance (select item first)</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            {% endif %}
-                            <li><a class="dropdown-item" href="{% url 'equipment:equipment-list' %}">All Equipment</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'equipment' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Equipment</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        {% if request.user.unit %}
+                          <li>
+                            <a class="dropdown-item"
+                               href="{% url 'equipment:unit-inventory' request.user.unit.pk %}">My Unit Inventory</a>
+                          </li>
+                          <li>
+                            <a class="dropdown-item"
+                               href="{% url 'equipment:unit-logs' request.user.unit.pk %}">My Unit Logs</a>
+                          </li>
+                          <li>
+                            <a class="dropdown-item text-warning"
+                               href="{% url 'equipment:equipment-list' %}?unit={{ request.user.unit.pk }}&functional=0">&#x26A0;&#xFE0F; Non-functional Items</a>
+                          </li>
+                          <li>
+                            <a class="dropdown-item text-danger"
+                               href="{% url 'equipment:equipment-overdue' %}">&#x1F6A8; Overdue Maintenance</a>
+                          </li>
+                          <li>
+                            <hr class="dropdown-divider" />
+                          </li>
+                          <li>
+                            <span class="dropdown-item-text text-muted small">Maintenance</span>
+                          </li>
+                          <li>
+                            <a class="dropdown-item"
+                               href="{% url 'equipment:equipment-list' %}?unit={{ request.user.unit.pk }}&functional=0">Log Maintenance (select item first)</a>
+                          </li>
+                          <li>
+                            <hr class="dropdown-divider" />
+                          </li>
+                        {% endif %}
+                        <li>
+                          <a class="dropdown-item" href="{% url 'equipment:equipment-list' %}">All Equipment</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'fleet' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Fleet</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'fleet:vehicle-list' %}">All Vehicles</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'fleet' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Fleet</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'fleet:vehicle-list' %}">All Vehicles</a>
+                        </li>
+                      </ul>
                     </li>
-
-                    {% else %}
-
+                  {% else %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Incidents</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'incidents:incident-list' %}">Incident Log</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'incidents' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Incidents</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'incidents:incident-list' %}">Incident Log</a>
+                        </li>
+                      </ul>
                     </li>
-
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Training</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a></li>
-                        </ul>
+                      <a class="nav-link dropdown-toggle {% if cur_app == 'training' %}active{% endif %}"
+                         href="#"
+                         role="button"
+                         data-bs-toggle="dropdown"
+                         aria-expanded="false">Training</a>
+                      <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'training:training-list' %}">Programmes</a>
+                        </li>
+                      </ul>
                     </li>
-
-                    {% endif %} {% endif %}
-
-                </ul>
-
-                <ul class="navbar-nav ms-auto mb-2 mb-xl-0 align-items-center">
-
-                    {% if request.user.is_authenticated %} {% if request.user.is_superuser or request.user.is_admin_role %}
+                  {% endif %}
+                {% endif %}
+              </ul>
+              <ul class="navbar-nav ms-auto mb-2 mb-xl-0 align-items-center">
+                {% if request.user.is_authenticated %}
+                  {% if request.user.is_superuser or request.user.is_admin_role %}
                     <li class="nav-item me-2">
-                        <span class="badge bg-danger px-2 py-1 small">&#x2699;&#xFE0F; Admin</span>
+                      <span class="badge bg-danger px-2 py-1 small">&#x2699;&#xFE0F; Admin</span>
                     </li>
-                    {% elif request.user.is_unit_in_charge %}
+                  {% elif request.user.is_unit_in_charge %}
                     <li class="nav-item me-2">
-                        <span class="badge bg-warning text-dark px-2 py-1 small" title="Your assigned unit">
-                    &#x1F3DB; {{ request.user.unit.name|default:"No Unit" }}
-                  </span>
+                      <span class="badge bg-warning text-dark px-2 py-1 small"
+                            title="Your assigned unit">&#x1F3DB; {{ request.user.unit.name|default:"No Unit" }}</span>
                     </li>
-                    {% else %}
+                  {% else %}
                     <li class="nav-item me-2">
-                        <span class="badge bg-secondary px-2 py-1 small">Volunteer</span>
+                      <span class="badge bg-secondary px-2 py-1 small">Volunteer</span>
                     </li>
-                    {% endif %}
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  {{ request.user.username }}
-                </a>
-                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                            {% if request.user.name %}
-                            <li><span class="dropdown-item-text text-muted small">{{ request.user.name }}</span></li>
-                            {% endif %}
-                            <li><span class="dropdown-item-text text-muted small">{{ request.user.get_role_display|default:"—" }}</span></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item" href="{% url 'users:detail' request.user.username %}">{% translate "My Profile" %}</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item text-danger" href="{% url 'account_logout' %}">{% translate "Sign Out" %}</a></li>
-                        </ul>
-                    </li>
-
-                    {% else %} {% if ACCOUNT_ALLOW_REGISTRATION %}
+                  {% endif %}
+                  <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle"
+                       href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">{{ request.user.username }}</a>
+                    <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                      {% if request.user.name %}
+                        <li>
+                          <span class="dropdown-item-text text-muted small">{{ request.user.name }}</span>
+                        </li>
+                      {% endif %}
+                      <li>
+                        <span class="dropdown-item-text text-muted small">{{ request.user.get_role_display|default:"—" }}</span>
+                      </li>
+                      <li>
+                        <hr class="dropdown-divider" />
+                      </li>
+                      <li>
+                        <a class="dropdown-item"
+                           href="{% url 'users:detail' request.user.username %}">{% translate "My Profile" %}</a>
+                      </li>
+                      <li>
+                        <hr class="dropdown-divider" />
+                      </li>
+                      <li>
+                        <a class="dropdown-item text-danger" href="{% url 'account_logout' %}">{% translate "Sign Out" %}</a>
+                      </li>
+                    </ul>
+                  </li>
+                {% else %}
+                  {% if ACCOUNT_ALLOW_REGISTRATION %}
                     <li class="nav-item">
-                        <a id="sign-up-link" class="nav-link" href="{% url 'account_signup' %}">{% translate "Sign Up" %}</a>
+                      <a id="sign-up-link" class="nav-link" href="{% url 'account_signup' %}">{% translate "Sign Up" %}</a>
                     </li>
-                    {% endif %}
-                    <li class="nav-item">
-                        <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
-                    </li>
-
-                    {% endif %}
-
-                </ul>
-
+                  {% endif %}
+                  <li class="nav-item">
+                    <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
+                  </li>
+                {% endif %}
+              </ul>
             </div>
-        </div>
-    </nav>
-    {% endwith %}
-
-    <div class="container mt-3">
-
-        {% if messages %} {% for message in messages %}
-        <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %} fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %} {% endif %} {% block main %} {% block content %}
-
-        <div class="px-4 py-5 my-4 text-center border rounded-3 bg-dark text-white shadow">
-            <div class="fs-1 mb-3">&#x1F6E1;&#xFE0F;</div>
-            <h1 class="display-5 fw-bold">West Bengal Civil Defence</h1>
-            <p class="col-lg-8 mx-auto lead text-secondary mt-2">
-                Information is key to management and efficiency
-            </p>
-            {% if not request.user.is_authenticated %}
-            <div class="d-inline-flex gap-2 mt-3">
-                <a href="{% url 'account_login' %}" class="btn btn-primary btn-lg px-4">Sign In</a>
+          </div>
+        </nav>
+      {% endwith %}
+      <div class="container mt-3">
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %} fade show"
+                 role="alert">
+              {{ message }}
+              <button type="button"
+                      class="btn-close"
+                      data-bs-dismiss="alert"
+                      aria-label="Close"></button>
             </div>
-            {% endif %}
-        </div>
-
-        {% endblock content %} {% endblock main %}
-
-    </div>
-
-    {% endblock body %} {% block modal %}{% endblock modal %} {% block inline_javascript %}{% endblock inline_javascript %}
-
-</body>
-
+          {% endfor %}
+        {% endif %}
+        {% block main %}
+          {% block content %}
+            <div class="px-4 py-5 my-4 text-center border rounded-3 bg-dark text-white shadow">
+              <div class="fs-1 mb-3">&#x1F6E1;&#xFE0F;</div>
+              <h1 class="display-5 fw-bold">West Bengal Civil Defence</h1>
+              <p class="col-lg-8 mx-auto lead text-secondary mt-2">Information is key to management and efficiency</p>
+              {% if not request.user.is_authenticated %}
+                <div class="d-inline-flex gap-2 mt-3">
+                  <a href="{% url 'account_login' %}" class="btn btn-primary btn-lg px-4">Sign In</a>
+                </div>
+              {% endif %}
+            </div>
+          {% endblock content %}
+        {% endblock main %}
+      </div>
+    {% endblock body %}
+    {% block modal %}
+    {% endblock modal %}
+    {% block inline_javascript %}
+    {% endblock inline_javascript %}
+  </body>
 </html>
