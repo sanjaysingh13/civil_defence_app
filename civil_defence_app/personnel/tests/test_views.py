@@ -551,6 +551,55 @@ class TestOfficeDutyMonthlyUpload:
         assert r.status_code == 302
         assert VolunteerOfficeDutyMonth.objects.count() == 0
 
+    def test_upload_same_csv_twice_updates_existing_without_duplicates(self):
+        admin = AdminUserFactory.create()
+        unit = UnitFactory.create()
+        vol = VolunteerFactory.create(
+            unit=unit,
+            serial_no="R1",
+            name="Retry Safe",
+            is_active=True,
+        )
+        csv_bytes = _csv_bytes_for_volunteers(vol, days="6")
+        client = _login(admin)
+
+        first = client.post(
+            self.upload_url,
+            {
+                "up-year": "2026",
+                "up-month": "7",
+                "up-unit": str(unit.pk),
+                "up-csv_file": SimpleUploadedFile(
+                    "filled.csv",
+                    csv_bytes,
+                    content_type="text/csv",
+                ),
+            },
+        )
+        second = client.post(
+            self.upload_url,
+            {
+                "up-year": "2026",
+                "up-month": "7",
+                "up-unit": str(unit.pk),
+                "up-csv_file": SimpleUploadedFile(
+                    "filled-again.csv",
+                    csv_bytes,
+                    content_type="text/csv",
+                ),
+            },
+        )
+
+        assert first.status_code == 302
+        assert second.status_code == 302
+        rows = VolunteerOfficeDutyMonth.objects.filter(
+            volunteer=vol,
+            year=2026,
+            month=7,
+        )
+        assert rows.count() == 1
+        assert rows.first().days_worked == 6
+
     def test_upload_appended_row_creates_new_volunteer(self):
         admin = AdminUserFactory.create()
         unit = UnitFactory.create()

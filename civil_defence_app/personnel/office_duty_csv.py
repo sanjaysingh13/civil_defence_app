@@ -14,6 +14,7 @@ import re
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.db import transaction
 
 from civil_defence_app.personnel.models import OfficeDutyMonthSubmission
@@ -234,19 +235,33 @@ def apply_office_duty_csv_upload(
             if vol.pk is None:
                 vol.full_clean()
                 vol.save()
-            obj, _created = VolunteerOfficeDutyMonth.objects.get_or_create(
-                volunteer=vol,
-                year=year,
-                month=month,
-                defaults={
-                    "days_worked": days,
-                    "recorded_by": recorded,
-                },
-            )
-            obj.days_worked = days
-            obj.recorded_by = recorded
-            obj.full_clean()
-            obj.save()
+
+            # Keep ingestion idempotent for accidental re-uploads:
+            # first try to create the monthly row; if another upload already
+            # created it (or race condition), update the existing row instead.
+            try:
+                obj, created = VolunteerOfficeDutyMonth.objects.get_or_create(
+                    volunteer=vol,
+                    year=year,
+                    month=month,
+                    defaults={
+                        "days_worked": days,
+                        "recorded_by": recorded,
+                    },
+                )
+            except IntegrityError:
+                obj = VolunteerOfficeDutyMonth.objects.get(
+                    volunteer=vol,
+                    year=year,
+                    month=month,
+                )
+                created = False
+
+            if not created:
+                obj.days_worked = days
+                obj.recorded_by = recorded
+                obj.full_clean()
+                obj.save()
             count += 1
         OfficeDutyMonthSubmission.objects.update_or_create(
             unit=unit,

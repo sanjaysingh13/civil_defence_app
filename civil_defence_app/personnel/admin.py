@@ -19,7 +19,6 @@ Register a model with admin.site.register(Model, AdminClass) or the
 from django.contrib import admin
 
 from .models import OfficeDutyMonthSubmission
-from .models import OfficeDutyPeriod
 from .models import Unit
 from .models import Volunteer
 from .models import VolunteerOfficeDutyMonth
@@ -173,18 +172,6 @@ class VolunteerAdmin(admin.ModelAdmin):
 # ─────────────────────────────────────────────────────────────────────────────
 # OFFICE DUTY ADMIN
 # ─────────────────────────────────────────────────────────────────────────────
-
-
-@admin.register(OfficeDutyPeriod)
-class OfficeDutyPeriodAdmin(admin.ModelAdmin):
-    """Browse and correct office-duty periods (staff use)."""
-
-    list_display = ("volunteer", "started_at", "ended_at", "recorded_by", "created_at")
-    list_filter = ("volunteer__unit",)
-    search_fields = ("volunteer__name", "notes")
-    autocomplete_fields = ("volunteer", "recorded_by")
-    readonly_fields = ("created_at", "updated_at")
-    date_hierarchy = "started_at"
 
 
 @admin.register(VolunteerOfficeDutyMonth)

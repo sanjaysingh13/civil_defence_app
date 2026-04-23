@@ -195,8 +195,8 @@ class VolunteerDetailView(LoginRequiredMixin, DetailView):
     Full detail card for a single Volunteer.
 
     Adds a combined service log: *incident* deployments (team operation via
-    IncidentAssignment) plus *individual* office duty (legacy periods and
-    monthly CSV aggregates).  Year-wise day summaries for wage-style reporting.
+    IncidentAssignment) plus *individual* office duty from monthly CSV
+    aggregates. Year-wise day summaries for wage-style reporting.
     """
 
     model = Volunteer
@@ -206,7 +206,6 @@ class VolunteerDetailView(LoginRequiredMixin, DetailView):
         return Volunteer.objects.select_related("unit").prefetch_related(
             "training_attendances__training_instance__training",
             "incident_assignments__incident",
-            "office_duty_periods",
             "office_duty_months",
         )
 

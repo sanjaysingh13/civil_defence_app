@@ -2,9 +2,9 @@
 Service log helpers for volunteers.
 
 *Operational* rows come from IncidentAssignment + Incident: that is the *team*
-response (several volunteers on one incident).  *Office* rows come from OfficeDutyPeriod (legacy date ranges) and
+response (several volunteers on one incident).  *Office* rows come from
 VolunteerOfficeDutyMonth (monthly day counts from CSV).  This module merges
-incidents + both office sources and computes
+incidents + office monthly rows and computes
 calendar-day totals per year for wage / summary displays.
 
 Calendar-day counting uses inclusive ranges: one calendar day contributes 1
@@ -35,8 +35,8 @@ class ServiceLogRow:
     One deployment segment shown on the volunteer detail page.
 
     OPERATIONAL = incident team deployment (this volunteer’s assignment to that
-    incident).  OFFICE = individual office duty from OfficeDutyPeriod or monthly
-    CSV aggregates (VolunteerOfficeDutyMonth).
+    incident). OFFICE = individual office duty from monthly CSV aggregates
+    (VolunteerOfficeDutyMonth).
 
     When office_days_credited and office_credit_year are set, the year summary
     adds that many office days to office_credit_year only (ignores period overlap).
@@ -98,8 +98,8 @@ def build_service_log_rows(volunteer) -> list[ServiceLogRow]:
     """
     Collect operational (incident) and office-duty rows for *volunteer*.
 
-    Expects prefetch_related on incident_assignments__incident,
-    office_duty_periods, and office_duty_months when callers optimize the queryset.
+    Expects prefetch_related on incident_assignments__incident and
+    office_duty_months when callers optimize the queryset.
     """
     rows: list[ServiceLogRow] = []
 
@@ -140,22 +140,6 @@ def build_service_log_rows(volunteer) -> list[ServiceLogRow]:
                 period_end=period_end,
                 incident_pk=incident.pk,
                 sort_key=sort_key,
-            ),
-        )
-
-    for period in volunteer.office_duty_periods.all():
-        start_d = local_date_from_datetime(period.started_at)
-        if start_d is None:
-            continue
-        period_end_office = local_date_from_datetime(period.ended_at)
-        rows.append(
-            ServiceLogRow(
-                deployment_kind="OFFICE",
-                label="Office duty",
-                period_start=start_d,
-                period_end=period_end_office,
-                incident_pk=None,
-                sort_key=period.started_at,
             ),
         )
 
