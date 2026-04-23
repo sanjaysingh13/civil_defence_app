@@ -51,7 +51,7 @@ class EquipmentListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = Equipment.objects.select_related("unit", "equipment_type").order_by(
-            "unit__name", "name"
+            "unit__name", "equipment_type__name", "unique_id"
         )
 
         self.q = self.request.GET.get("q", "").strip()
@@ -63,7 +63,11 @@ class EquipmentListView(LoginRequiredMixin, ListView):
         self.functional = self.request.GET.get("functional", "").strip()
 
         if self.q:
-            qs = qs.filter(name__icontains=self.q)
+            qs = qs.filter(
+                Q(equipment_type__name__icontains=self.q)
+                | Q(unique_id__icontains=self.q)
+                | Q(name__icontains=self.q)
+            )
         if self.category:
             qs = qs.filter(category=self.category)
         if self.status:
@@ -569,7 +573,7 @@ class EquipmentOverdueView(LoginRequiredMixin, ListView):
         qs = (
             Equipment.objects.filter(overdue_filter, is_functional=True)
             .select_related("unit", "equipment_type")
-            .order_by("unit__name", "next_due_date", "name")
+            .order_by("unit__name", "next_due_date", "equipment_type__name", "unique_id")
         )
 
         # UICs see only their own unit; Admins can filter optionally.

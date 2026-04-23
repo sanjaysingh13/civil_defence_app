@@ -17,7 +17,12 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
-from civil_defence_app.equipment.models import Equipment, EquipmentMaintenanceLog, EquipmentStatus
+from civil_defence_app.equipment.models import (
+    Equipment,
+    EquipmentMaintenanceLog,
+    EquipmentStatus,
+    EquipmentType,
+)
 from civil_defence_app.incidents.tests.factories import (
     AdminUserFactory,
     EquipmentFactory,
@@ -414,3 +419,21 @@ class TestEquipmentDetailWithLogs:
         uic = UICUserFactory.create(unit=unit)
         response = _login(uic).get(_detail_url(equip))
         assert "01 Mar 2026" in response.content.decode()
+
+    def test_detail_shows_maintainance_note_when_present(self):
+        """
+        The equipment detail page should render the read-only maintenance
+        reminder note when configured on the equipment row.
+        """
+        unit = UnitFactory.create()
+        equip = EquipmentFactory.create(unit=unit)
+        equip.equipment_type = EquipmentType.objects.create(
+            name="Battery Unit Type",
+            equipment_maintainance_note="Check battery terminals before each shift.",
+        )
+        equip.save(update_fields=["equipment_type"])
+        uic = UICUserFactory.create(unit=unit)
+        response = _login(uic).get(_detail_url(equip))
+        content = response.content.decode()
+        assert "Maintenance reminder note" in content
+        assert "Check battery terminals before each shift." in content

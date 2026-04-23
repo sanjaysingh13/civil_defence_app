@@ -97,6 +97,52 @@ def _parse_days(raw: str, year: int, month: int) -> int:
     return value
 
 
+def _next_serial_seed_for_unit(unit: Unit) -> tuple[str, int, int, set[str]]:
+    """
+    Build serial allocation seed for auto-creating volunteers from CSV rows.
+
+    Returns:
+      (prefix, next_number, width, used_serials)
+    """
+    serials = list(
+        Volunteer.objects.filter(unit=unit).values_list("serial_no", flat=True),
+    )
+    used_serials = {str(s or "").strip() for s in serials if str(s or "").strip()}
+    best_prefix = ""
+    best_num = 0
+    best_width = 1
+    for raw in used_serials:
+        m = re.fullmatch(r"([^\d]*)(\d+)", raw)
+        if not m:
+            continue
+        prefix, num_raw = m.group(1), m.group(2)
+        num_val = int(num_raw)
+        if num_val >= best_num:
+            best_num = num_val
+            best_prefix = prefix
+            best_width = len(num_raw)
+    if best_num <= 0:
+        return ("S", 1, 1, used_serials)
+    return (best_prefix, best_num + 1, best_width, used_serials)
+
+
+def _allocate_next_serial_no(
+    prefix: str,
+    next_number: int,
+    width: int,
+    used_serials: set[str],
+) -> tuple[str, int]:
+    """Allocate the next free serial string and return (serial, updated_counter)."""
+    n = next_number
+    while True:
+        num_text = str(n).zfill(width)
+        serial = f"{prefix}{num_text}"
+        if serial not in used_serials:
+            used_serials.add(serial)
+            return serial, n + 1
+        n += 1
+
+
 def apply_office_duty_csv_upload(
     file_content: str | bytes,
     unit: Unit,
@@ -129,22 +175,44 @@ def apply_office_duty_csv_upload(
         )
 
     rows_parsed: list[tuple[Volunteer, int]] = []
+    serial_prefix, next_serial_number, serial_width, used_serials = (
+        _next_serial_seed_for_unit(unit)
+    )
     for lineno, row in enumerate(reader, start=2):
         vid_raw = _row_get(row, norm, "volunteer_id")
-        if not vid_raw:
-            raise ValidationError(f"Row {lineno}: missing volunteer_id.")
-        if not re.fullmatch(r"\d+", vid_raw):
-            raise ValidationError(f"Row {lineno}: invalid volunteer_id.")
-        vid = int(vid_raw)
-        try:
-            vol = Volunteer.objects.select_related("unit").get(pk=vid)
-        except Volunteer.DoesNotExist as exc:
-            raise ValidationError(f"Row {lineno}: unknown volunteer_id {vid}.") from exc
-        if vol.unit_id != unit.pk:
-            raise ValidationError(
-                f"Row {lineno}: volunteer {vid} does not belong to the selected unit.",
-            )
         serial = _row_get(row, norm, "serial_no")
+        name = _row_get(row, norm, "name")
+        vol: Volunteer
+        if not vid_raw:
+            if serial:
+                raise ValidationError(
+                    f"Row {lineno}: volunteer_id is required when serial_no is provided.",
+                )
+            if not name:
+                raise ValidationError(
+                    f"Row {lineno}: name is required when adding a new volunteer.",
+                )
+            serial, next_serial_number = _allocate_next_serial_no(
+                prefix=serial_prefix,
+                next_number=next_serial_number,
+                width=serial_width,
+                used_serials=used_serials,
+            )
+            vol = Volunteer(unit=unit, serial_no=serial, name=name, is_active=True)
+        else:
+            if not re.fullmatch(r"\d+", vid_raw):
+                raise ValidationError(f"Row {lineno}: invalid volunteer_id.")
+            vid = int(vid_raw)
+            try:
+                vol = Volunteer.objects.select_related("unit").get(pk=vid)
+            except Volunteer.DoesNotExist as exc:
+                raise ValidationError(
+                    f"Row {lineno}: unknown volunteer_id {vid}.",
+                ) from exc
+            if vol.unit_id != unit.pk:
+                raise ValidationError(
+                    f"Row {lineno}: volunteer {vid} does not belong to the selected unit.",
+                )
         if serial and (vol.serial_no or "") != serial:
             raise ValidationError(
                 f"Row {lineno}: serial_no does not match volunteer record.",
@@ -163,6 +231,9 @@ def apply_office_duty_csv_upload(
     with transaction.atomic():
         count = 0
         for vol, days in rows_parsed:
+            if vol.pk is None:
+                vol.full_clean()
+                vol.save()
             obj, _created = VolunteerOfficeDutyMonth.objects.get_or_create(
                 volunteer=vol,
                 year=year,

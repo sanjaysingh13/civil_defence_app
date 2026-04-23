@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from django.urls import reverse
 
@@ -131,6 +132,20 @@ class TestEquipmentTypeModel:
         et = _make_equipment_type(description=long_desc)
         et.refresh_from_db()
         assert et.description == long_desc
+
+    def test_picture_can_be_uploaded(self):
+        """EquipmentType picture should accept an uploaded image file."""
+        image = SimpleUploadedFile(
+            "type.png",
+            (
+                b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+                b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc`\x00\x00"
+                b"\x00\x02\x00\x01\xe2!\xbc3\x00\x00\x00\x00IEND\xaeB`\x82"
+            ),
+            content_type="image/png",
+        )
+        et = EquipmentType.objects.create(name="Picture Test Type", picture=image)
+        assert bool(et.picture)
 
     def test_ordering_is_by_category_then_name(self):
         """

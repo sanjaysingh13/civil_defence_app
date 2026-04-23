@@ -155,6 +155,7 @@ class VolunteerAdmin(admin.ModelAdmin):
                     "basic_training_details",
                     "special_training_details",
                     "extra_activities",
+                    "exceptional_performance",
                     "documents_ref",
                 ),
             },

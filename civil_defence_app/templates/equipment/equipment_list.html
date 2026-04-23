@@ -42,13 +42,13 @@ Context from EquipmentListView:
       <div class="card-body py-2">
         <form method="get" class="row g-2 align-items-end">
           <div class="col-12 col-md-3">
-            <label for="q" class="form-label form-label-sm mb-1 fw-semibold">Search name</label>
+            <label for="q" class="form-label form-label-sm mb-1 fw-semibold">Search type or asset tag</label>
             <input type="text"
                    id="q"
                    name="q"
                    value="{{ q }}"
                    class="form-control form-control-sm"
-                   placeholder="Equipment name…" />
+                   placeholder="Type name or asset tag…" />
           </div>
           <div class="col-6 col-md-2">
             <label for="category" class="form-label form-label-sm mb-1 fw-semibold">Category</label>
@@ -102,7 +102,7 @@ Context from EquipmentListView:
             <thead class="table-dark">
               <tr>
                 <th class="text-center">#</th>
-                <th>Name</th>
+                <th>Equipment Type</th>
                 <th>Unit</th>
                 <th class="text-center">Category</th>
                 <th class="text-center">Status</th>
@@ -115,7 +115,7 @@ Context from EquipmentListView:
               {% for eq in equipment_list %}
                 <tr>
                   <td class="text-center text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
-                  <td class="fw-semibold">{{ eq.name }}</td>
+                  <td class="fw-semibold">{{ eq.display_name }}</td>
                   <td>{{ eq.unit.name }}</td>
                   <td class="text-center">
                     <span class="badge bg-info text-dark">{{ eq.get_category_display }}</span>

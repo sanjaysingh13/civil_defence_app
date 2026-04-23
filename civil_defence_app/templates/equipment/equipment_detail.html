@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block title %}
-  {{ equipment.name }} — Equipment — Civil Defence
+  {{ equipment.display_name }} — Equipment — Civil Defence
 {% endblock title %}
 {% block content %}
   <div class="container-fluid py-4">
     <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
       <div>
-        <h2 class="mb-0 fw-bold">{{ equipment.name }}</h2>
+        <h2 class="mb-0 fw-bold">{{ equipment.display_name }}</h2>
         <small class="text-muted">{{ equipment.unit.name }}</small>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -23,7 +23,7 @@
             <li class="breadcrumb-item">
               <a href="{% url 'equipment:equipment-list' %}">Equipment</a>
             </li>
-            <li class="breadcrumb-item active">{{ equipment.name }}</li>
+            <li class="breadcrumb-item active">{{ equipment.display_name }}</li>
           </ol>
         </nav>
       </div>
@@ -109,6 +109,12 @@
               {{ equipment.maintenance_logs.count }} entr{{ equipment.maintenance_logs.count|pluralize:"y,ies" }}
             </small>
           </div>
+          {% if equipment.equipment_type and equipment.equipment_type.equipment_maintainance_note %}
+            <div class="card-body border-bottom bg-light small">
+              <p class="mb-1 fw-semibold">Maintenance reminder note</p>
+              <p class="mb-0 text-muted">{{ equipment.equipment_type.equipment_maintainance_note }}</p>
+            </div>
+          {% endif %}
           <div class="card-body p-0">
             {% if equipment.maintenance_logs.all %}
               <div class="table-responsive">

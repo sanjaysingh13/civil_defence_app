@@ -134,6 +134,21 @@ class EquipmentType(TimeStampedModel):
         help_text=_("What this equipment is used for and key operational notes."),
     )
 
+    equipment_maintainance_note = models.TextField(
+        _("Equipment Maintainance Note"),
+        blank=True,
+        default="",
+        help_text=_("Reminder notes on what to do during maintenance checks."),
+    )
+
+    picture = models.ImageField(
+        _("Picture"),
+        upload_to="equipment/types/",
+        blank=True,
+        null=True,
+        help_text=_("Reference picture for this equipment type."),
+    )
+
     # How many months between mandatory maintenance/inspection events.
     # Default is 1 month (monthly check) — the most conservative option.
     # The Admin can relax this for simple hand tools (e.g. 6 months for shovels).
@@ -277,7 +292,22 @@ class Equipment(TimeStampedModel):
         ordering            = ["unit", "category", "name"]
 
     def __str__(self) -> str:
-        return f"{self.name} [{self.unique_id}] — {self.unit.name}"
+        return f"{self.display_name} [{self.unique_id}] — {self.unit.name}"
+
+    @property
+    def display_name(self) -> str:
+        """
+        Canonical label used in UI/forms.
+
+        The product decision is to treat EquipmentType as the user-facing source
+        of truth for names, so screens should show type.name instead of the
+        duplicated Equipment.name field. We still keep Equipment.name in the
+        database for legacy compatibility and migration safety, but all new UI
+        rendering should use this property.
+        """
+        if self.equipment_type_id and self.equipment_type and self.equipment_type.name:
+            return self.equipment_type.name
+        return self.name or self.unique_id
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -352,7 +382,7 @@ class EquipmentMaintenanceLog(TimeStampedModel):
 
     def __str__(self) -> str:
         fit_label = "Fit" if self.is_fit else "Not Fit"
-        return f"{self.equipment.name} — {self.check_date} ({fit_label})"
+        return f"{self.equipment.display_name} — {self.check_date} ({fit_label})"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -405,4 +435,6 @@ class IncidentEquipment(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.equipment.name} × {self.quantity_deployed} → {self.incident.title}"
+        return (
+            f"{self.equipment.display_name} × {self.quantity_deployed} → {self.incident.title}"
+        )

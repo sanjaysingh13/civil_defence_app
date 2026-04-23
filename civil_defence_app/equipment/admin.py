@@ -90,6 +90,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "category",
+        "has_picture",
         "scheduled_maintenance_periodicity",
         "instance_count",
     )
@@ -109,7 +110,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
         (
             "Description",
             {
-                "fields": ("description",),
+                "fields": ("description", "equipment_maintainance_note", "picture"),
                 "classes": ("wide",),
             },
         ),
@@ -130,6 +131,11 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
         computed columns to the changelist without a DB column.
         """
         return obj.equipment_instances.count()
+
+    @admin.display(description="Picture")
+    def has_picture(self, obj):
+        """Boolean marker so admins can quickly see which types have pictures."""
+        return bool(obj.picture)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -154,7 +160,7 @@ class EquipmentAdmin(admin.ModelAdmin):
     form = EquipmentAdminForm
 
     list_display = (
-        "name",
+        "display_name",
         "equipment_type",
         "unique_id",
         "category",
@@ -165,7 +171,7 @@ class EquipmentAdmin(admin.ModelAdmin):
         "next_due_date",
     )
     list_filter = ("category", "status", "is_functional", "unit", "equipment_type")
-    search_fields = ("name", "unique_id")
+    search_fields = ("equipment_type__name", "unique_id")
     # Autocomplete only for Unit (many rows). EquipmentType uses a normal
     # <select> so all types are visible without typing — the old autocomplete
     # widget looked “empty” until you searched, which confused operators.
@@ -187,7 +193,7 @@ class EquipmentAdmin(admin.ModelAdmin):
         (
             "Identification",
             {
-                "fields": ("name", "unique_id", "category"),
+                "fields": ("unique_id", "category"),
             },
         ),
         (
@@ -231,6 +237,11 @@ class EquipmentAdmin(admin.ModelAdmin):
             ),
         ] + super().get_urls()
 
+    @admin.display(description="Equipment")
+    def display_name(self, obj):
+        """Show type-backed name in admin lists."""
+        return obj.display_name
+
     def next_asset_tag_view(self, request):
         """
         Staff-only GET handler: ``?unit=<pk>&equipment_type=<pk>`` → next unique_id.
@@ -272,6 +283,6 @@ class EquipmentMaintenanceLogAdmin(admin.ModelAdmin):
         "checked_by",
     )
     list_filter = ("is_fit", "status_after_check", "equipment__unit")
-    search_fields = ("equipment__name", "equipment__unique_id")
+    search_fields = ("equipment__equipment_type__name", "equipment__unique_id")
     autocomplete_fields = ("equipment",)
     readonly_fields = ("created_at", "updated_at")

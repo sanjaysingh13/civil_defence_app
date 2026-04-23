@@ -62,7 +62,7 @@
             <tr>
               <td class="text-muted text-nowrap">{{ page_obj.start_index|add:forloop.counter0 }}</td>
               <td class="text-nowrap">{{ log.check_date|date:"d M Y" }}</td>
-              <td class="fw-semibold">{{ log.equipment.name }}</td>
+              <td class="fw-semibold">{{ log.equipment.display_name }}</td>
               <td><code class="small">{{ log.equipment.unique_id }}</code></td>
               <td class="text-center">
                 {% if log.is_fit %}

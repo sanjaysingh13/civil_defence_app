@@ -70,6 +70,9 @@ class IncidentAssignmentRole(models.TextChoices):
     DRIVER = "DRIVER", _("Driver")
     FIREFIGHTER = "FIREFIGHTER", _("Fire-fighter")
     CUTTER = "CUTTER", _("Cutter")
+    FIRST_AID = "FIRST_AID", _("First Aid")
+    RESCUE = "RESCUE", _("Rescue")
+    OTHER = "OTHER", _("Other")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

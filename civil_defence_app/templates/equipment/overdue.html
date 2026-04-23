@@ -82,7 +82,7 @@
             <tr class="{% if not eq.last_check_date %}table-secondary{% elif eq.next_due_date %}table-warning{% endif %}">
               <td class="text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
               <td class="text-nowrap">{{ eq.unit.name }}</td>
-              <td class="fw-semibold">{{ eq.name }}</td>
+              <td class="fw-semibold">{{ eq.display_name }}</td>
               <td class="text-center">
                 {% if eq.equipment_type %}
                   <span class="badge bg-info text-dark small">{{ eq.equipment_type.get_category_display }}</span>

@@ -97,7 +97,11 @@
       <div class="card-body small">
         <strong>CSV format (UTF-8):</strong>
         <code>serial_no</code>, <code>name</code>, <code>volunteer_id</code>, <code>days_worked</code>.
-        Do not change the first three columns. Leave <code>days_worked</code> empty or <code>0</code> for no office days.
+        Keep existing rows unchanged in the first three columns; enter only <code>days_worked</code>.
+        If a volunteer is missing from the list, append a new row at the bottom with
+        <code>name</code> and <code>days_worked</code>, leaving <code>serial_no</code> and
+        <code>volunteer_id</code> empty. The system will create that volunteer and auto-assign serial number.
+        Leave <code>days_worked</code> empty or <code>0</code> for no office days.
       </div>
     </div>
   </div>

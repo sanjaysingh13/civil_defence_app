@@ -26,6 +26,7 @@ from civil_defence_app.incidents.tests.factories import UICUserFactory
 from civil_defence_app.incidents.tests.factories import UnitFactory
 from civil_defence_app.incidents.tests.factories import VolunteerFactory
 from civil_defence_app.personnel.models import OfficeDutyMonthSubmission
+from civil_defence_app.personnel.models import Volunteer
 from civil_defence_app.personnel.models import VolunteerOfficeDutyMonth
 from civil_defence_app.users.models import User
 from civil_defence_app.users.models import UserRole
@@ -454,6 +455,16 @@ def _csv_bytes_for_volunteers(*vols: Volunteer, days: str = "3") -> bytes:
     return buf.getvalue().encode("utf-8")
 
 
+def _csv_bytes_with_rows(rows: list[list[str]]) -> bytes:
+    """Build CSV bytes with explicit rows for edge-case parser tests."""
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow(["serial_no", "name", "volunteer_id", "days_worked"])
+    for row in rows:
+        w.writerow(row)
+    return buf.getvalue().encode("utf-8")
+
+
 class TestOfficeDutyMonthlyHubAndDownload:
     hub = reverse("personnel:office-duty-monthly")
     dl = reverse("personnel:office-duty-template-download")
@@ -539,6 +550,42 @@ class TestOfficeDutyMonthlyUpload:
         )
         assert r.status_code == 302
         assert VolunteerOfficeDutyMonth.objects.count() == 0
+
+    def test_upload_appended_row_creates_new_volunteer(self):
+        admin = AdminUserFactory.create()
+        unit = UnitFactory.create()
+        existing = VolunteerFactory.create(
+            unit=unit,
+            serial_no="S9",
+            name="Existing Person",
+            is_active=True,
+        )
+        csv_bytes = _csv_bytes_with_rows(
+            [
+                [existing.serial_no, existing.name, str(existing.pk), "4"],
+                ["", "New Recruit", "", "7"],
+            ],
+        )
+        f = SimpleUploadedFile("filled.csv", csv_bytes, content_type="text/csv")
+        client = _login(admin)
+        r = client.post(
+            self.upload_url,
+            {
+                "up-year": "2026",
+                "up-month": "6",
+                "up-unit": str(unit.pk),
+                "up-csv_file": f,
+            },
+        )
+        assert r.status_code == 302
+        new_vol = Volunteer.objects.get(unit=unit, name="New Recruit")
+        assert new_vol.serial_no == "S10"
+        assert new_vol.is_active is True
+        assert VolunteerOfficeDutyMonth.objects.get(
+            volunteer=new_vol,
+            year=2026,
+            month=6,
+        ).days_worked == 7
 
 
 class TestOfficeDutyStatusAndEmail:

@@ -327,6 +327,16 @@ class Volunteer(TimeStampedModel):
         default="",
     )
 
+    # Running log for commendations and noteworthy service contributions.
+    exceptional_performance = models.TextField(
+        _("Exceptional Performance"),
+        blank=True,
+        default="",
+        help_text=_(
+            "Running log of notable achievements, commendations, and good work citations.",
+        ),
+    )
+
     # Reference string for the linked document PDF (e.g. "01_PALASH DHAR_AP.pdf").
     # Actual file upload is handled separately through media storage.
     documents_ref = models.CharField(
